@@ -1,0 +1,85 @@
+/* Forest type on the green stage, the way wise.com opens. Wide screens only. */
+.stage-intro {
+  display: grid;
+  flex: none;
+  align-content: center;
+  justify-items: start;
+  gap: 22px;
+  width: 360px;
+  color: var(--forest-green);
+}
+
+.stage-intro__eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 32px;
+  padding: 0 14px;
+  border-radius: var(--radius-pill);
+  background: rgba(22, 51, 0, 0.1);
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0;
+}
+
+.stage-intro__eyebrow::before {
+  content: '';
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.stage-intro__title {
+  font-family: var(--font-display);
+  font-size: 104px;
+  font-weight: 900;
+  line-height: 0.84;
+  letter-spacing: -0.015em;
+  text-transform: uppercase;
+}
+
+.stage-intro__lead {
+  max-width: 340px;
+  font-size: 21px;
+  font-weight: 500;
+  line-height: 1.4;
+  letter-spacing: -0.02em;
+}
+
+.stage-intro__points {
+  display: grid;
+  gap: 12px;
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+.stage-intro__points li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.stage-intro__icon {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--forest-green);
+  color: var(--bright-green);
+}
+
+.stage-intro__small {
+  color: rgba(22, 51, 0, 0.8);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+@media (max-width: 1260px), (max-height: 700px) {
+  .stage-intro {
+    display: none;
+  }
+}

@@ -5,6 +5,7 @@ import { bankStore, useBank } from './bank/useBank';
 import { PhoneFrame } from './components/PhoneFrame';
 import { type Tab, TabBar } from './components/TabBar';
 import { DemoControls, type DemoSettings } from './demo/DemoControls';
+import { StageIntro } from './demo/StageIntro';
 import { Home } from './screens/Home';
 import { Lock } from './screens/Lock';
 import { Onboarding } from './screens/Onboarding';
@@ -129,6 +130,7 @@ export default function App() {
 
   return (
     <div className="stage">
+      <StageIntro />
       <PhoneFrame>
         {stage === 'onboarding' && (
           <Onboarding
@@ -174,7 +176,7 @@ export default function App() {
         )}
       </PhoneFrame>
 
-      <button type="button" className="btn btn--neutral demo-toggle" aria-expanded={demoOpen} onClick={() => setDemoOpen((open) => !open)}>
+      <button type="button" className="btn btn--dark demo-toggle" aria-expanded={demoOpen} onClick={() => setDemoOpen((open) => !open)}>
         Demo
       </button>
       <DemoControls

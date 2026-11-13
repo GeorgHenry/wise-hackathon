@@ -16,9 +16,11 @@ document covers everything outside that folder.
 
 - **Workflow:** the Figma file "carrot–plan"
   (https://www.figma.com/design/4YopYOHldPIj9pfU1lvcIR/), read on 2026-11-13.
-- **Look:** 20 screenshots of the Wise iOS app supplied by the user. They guide
-  layout and style only. No real name, balance or account number from them is
-  used.
+- **Look:** 20 screenshots of the Wise iOS app supplied by the user guide the
+  layout; no real name, balance or account number from them is used. Colours,
+  radii, shadows and type sizes are Wise's own design tokens (the "Neptune"
+  personal theme), read from wise.com's stylesheets on 2026-11-13 (see
+  "Visual design").
 - **Voice agent interface:** `voice-agent/web/voice.js`,
   `voice-agent/web/tools-runtime.js` and `voice-agent/web/mock-bank.js`, read
   on 2026-11-13.
@@ -186,6 +188,24 @@ reliably tell whether headphones are in, so a demo switch sets
 | Face ID fails | "Not sent" card; the balance is unchanged |
 | Session drops mid-transfer | The prepared transfer is cancelled; nothing moves |
 
+## Visual design
+
+Changed on 2026-11-13 at the user's request ("match wise's own vibe at
+wise.com"): the dark theme picked by eye gave way to Wise's own tokens, kept in
+`app/src/styles/tokens.css`.
+
+| Part | Choice |
+|---|---|
+| Colour | Bright Green `#9FE870` and Forest Green `#163300`; content `#0E0F0C` / `#454745` / `#6A6C6A`; neutral tint `rgba(22,51,0,0.08)` |
+| Surfaces | Light (Home, tabs, cards), bright green (onboarding welcome, success cards, the desktop stage) and forest (lock screen, voice sheet) |
+| Type | Inter for text, as Wise uses. Wise Sans is proprietary, so Schibsted Grotesk Black (open licence, `@fontsource-variable/schibsted-grotesk`) stands in for headlines and big amounts, in capitals |
+| Shapes | Pill buttons; radii 10 / 16 / 24 / 32 px; Wise's raised-card shadow |
+| Voice cards | Drawn like Wise's send-money calculator: currency pills, heavy figures in forest |
+| Motion | The total counts to its new value after a payment, with a green marker when money comes in; captions appear word by word; all of it off under reduced motion |
+
+No Wise logo or illustration is copied; the welcome picture (a microphone with
+currencies circling it) is drawn for this prototype.
+
 ## Accessibility
 
 The product is for people with sight loss, so the prototype should not be
@@ -195,7 +215,8 @@ hostile to them:
   and returned on close.
 - Captions sit in a polite live region, switched off while the reply is also spoken, so a screen reader does not talk over the agent.
 - Touch targets are at least 48 px; the mic button is 64 px.
-- Text contrast meets WCAG AA on the dark theme.
+- Text contrast meets WCAG AA on all three surfaces (checked by calculation for
+  the main colour pairs, not with a tool).
 - Motion is reduced when the system asks for it.
 
 ## Safety

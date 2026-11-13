@@ -1,4 +1,4 @@
-import { ArrowLeftRight, CalendarClock, Grip, HandCoins, ListFilter, RefreshCw, Search, SlidersHorizontal, Snowflake, Split, WalletCards } from 'lucide-react';
+import { ArrowLeftRight, CalendarClock, Grip, HandCoins, ListFilter, Nfc, RefreshCw, Search, SlidersHorizontal, Snowflake, Split, WalletCards } from 'lucide-react';
 import { useState } from 'react';
 import { useBank } from '../bank/useBank';
 import { Avatar, LinkRow } from '../components/rows';
@@ -22,13 +22,13 @@ export function Recipients() {
 
   return (
     <div className="screen">
-      <h1 className="title tab__title">Recipients</h1>
+      <h1 className="display tab__title">Recipients</h1>
       <label className="search">
         <Search size={20} aria-hidden="true" />
         <span className="sr-only">Search recipients</span>
         <input type="search" placeholder="Search" value={query} onChange={(event) => setQuery(event.target.value)} />
       </label>
-      <p className="tab__hint muted">Wise Voice can send money to these saved people, and to phone contacts who use Wise.</p>
+      <p className="tab__hint">Wise Voice can send money to these saved people, and to phone contacts who use Wise.</p>
       {shown.length + shownContacts.length === 0 ? (
         <p className="tab__empty" role="status">
           No saved recipient matches “{query.trim()}”.
@@ -74,10 +74,13 @@ export function Cards({ onToast }: TabProps) {
   ];
   return (
     <div className="screen">
-      <h1 className="title tab__title">Cards</h1>
+      <h1 className="display tab__title">Cards</h1>
       <div className="card-art" aria-hidden="true">
+        <span className="card-art__waves" />
         <span className="card-art__name">Wise Voice</span>
+        <Nfc className="card-art__nfc" size={26} strokeWidth={2.2} />
         <span className="card-art__chip" />
+        <span className="card-art__number">•••• 0000</span>
         <span className="card-art__kind">Demo card</span>
       </div>
       <p className="card-caption">
@@ -87,7 +90,7 @@ export function Cards({ onToast }: TabProps) {
         {actions.map(({ label, icon: Icon }) => (
           <button key={label} type="button" className="card-action" onClick={() => onToast(NOT_BUILT)}>
             <span className="card-action__icon">
-              <Icon size={26} aria-hidden="true" />
+              <Icon size={24} aria-hidden="true" />
             </span>
             {label}
           </button>
@@ -112,7 +115,7 @@ export function Payments({ onToast }: TabProps) {
   ];
   return (
     <div className="screen">
-      <h1 className="title tab__title">Payments</h1>
+      <h1 className="display tab__title">Payments</h1>
       <ul>
         {tools.map((tool) => (
           <LinkRow key={tool.title} icon={tool.icon} title={tool.title} text={tool.text} onClick={() => onToast(NOT_BUILT)} />

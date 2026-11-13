@@ -29,6 +29,16 @@ interface VoiceSheetProps {
   onUseScripted: () => void;
 }
 
+/** The agent's words fade in one after another, as if spoken. The text itself is whole for screen readers. */
+function Spoken({ text }: { text: string }) {
+  return text.split(' ').map((word, i) => (
+    // Words only ever append to a line, so the index is a stable key.
+    <span key={i} className="word" style={{ animationDelay: `${Math.min(i, 40) * 35}ms` }}>
+      {word}{' '}
+    </span>
+  ));
+}
+
 /** The card for the most recent thing that happened since the sheet opened. */
 function latestCard(bank: BankSnapshot, since: number, onSend: () => void, onCancel: () => void): ReactNode {
   const { transfer, lastIncoming, activity } = bank;
@@ -146,14 +156,22 @@ export function VoiceSheet({ store, voice, onClose, onUseScripted }: VoiceSheetP
   return (
     <>
       <div className="sheet-backdrop" />
-      <section ref={sheet} className="sheet" role="dialog" aria-modal="true" aria-labelledby="voice-title" onKeyDown={onKeyDown}>
+      <section
+        ref={sheet}
+        className={card ? 'sheet sheet--has-card theme-forest' : 'sheet theme-forest'}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="voice-title"
+        onKeyDown={onKeyDown}
+      >
+        <span className="sheet__grabber" aria-hidden="true" />
         <header className="sheet__head">
-          <div>
+          <div className="sheet__heading">
             <h2 id="voice-title" className="sheet__title">
               Wise Voice
             </h2>
-            <p className="sheet__meta">
-              {bank.audioPrivacy === 'private' ? <Headphones size={16} aria-hidden="true" /> : <Volume2 size={16} aria-hidden="true" />}
+            <p className={bank.audioPrivacy === 'private' ? 'sheet__meta' : 'sheet__meta sheet__meta--speaker'}>
+              {bank.audioPrivacy === 'private' ? <Headphones size={15} aria-hidden="true" /> : <Volume2 size={15} aria-hidden="true" />}
               {bank.audioPrivacy === 'private' ? 'Private audio' : 'Loudspeaker'}
             </p>
           </div>
@@ -192,8 +210,16 @@ export function VoiceSheet({ store, voice, onClose, onUseScripted }: VoiceSheetP
             >
               {/* Not announced while the agent is speaking the same words, or a screen reader would talk over it. */}
               <div className="captions" aria-live={live ? 'off' : 'polite'}>
-                {userLine && <p className="captions__user">“{userLine.text}”</p>}
-                {agentLine && !userSpokeLast && <p className="captions__agent">{agentLine.text}</p>}
+                {userLine && (
+                  <p key={userLine.id} className="captions__user">
+                    “{userLine.text}”
+                  </p>
+                )}
+                {agentLine && !userSpokeLast && (
+                  <p key={agentLine.id} className="captions__agent">
+                    <Spoken text={agentLine.text} />
+                  </p>
+                )}
               </div>
               {card}
             </div>
@@ -201,7 +227,8 @@ export function VoiceSheet({ store, voice, onClose, onUseScripted }: VoiceSheetP
             {/* With the real agent you just talk; typing is one tap away. Without it, tapping and typing are the only way in. */}
             <footer className="sheet__foot">
               {!live && (
-                <ul className="chips" aria-label="Things to say">
+                // A new set of phrases starts scrolled to its first, so "Yes, send it" is in view.
+                <ul key={waitingForYes ? 'confirm' : 'opening'} className={waitingForYes ? 'chips chips--confirm' : 'chips'} aria-label="Things to say">
                   {(waitingForYes ? CONFIRM_PHRASES : OPENING_PHRASES).map((phrase) => (
                     <li key={phrase}>
                       <button type="button" className="chip" onClick={() => voice.sendText(phrase)}>

@@ -12,18 +12,24 @@ body,
 
 body {
   margin: 0;
-  background: var(--page);
-  color: var(--text);
+  /* The stage around the phone is Wise's bright green; on a phone the app fills the screen. */
+  background: var(--bright-green);
+  color: var(--content-primary);
   font-family: var(--font);
   font-size: 16px;
-  line-height: 1.35;
+  line-height: 1.5;
+  letter-spacing: -0.011em;
+  font-feature-settings: 'calt';
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
   -webkit-tap-highlight-color: transparent;
+  text-rendering: optimizeLegibility;
 }
 
 button,
 input {
   font: inherit;
+  letter-spacing: inherit;
   color: inherit;
 }
 
@@ -48,8 +54,8 @@ ul {
 }
 
 :focus-visible {
-  outline: 2px solid var(--green);
-  outline-offset: 3px;
+  outline: 3px solid var(--focus-ring);
+  outline-offset: 2px;
 }
 
 .sr-only {
@@ -71,7 +77,7 @@ ul {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 40px;
+  gap: 56px;
   padding: 24px;
 }
 
@@ -80,44 +86,73 @@ ul {
   flex: none;
   width: 414px;
   height: min(868px, calc(100dvh - 48px));
-  padding: 12px;
-  border-radius: 60px;
-  background: #050605;
+  padding: 11px;
+  border-radius: 62px;
+  background: #0b0c0a;
   box-shadow:
-    0 0 0 2px #2a2d29,
-    0 30px 80px rgba(0, 0, 0, 0.55);
+    inset 0 0 0 1.5px #3a3d38,
+    0 0 0 1px rgba(22, 51, 0, 0.35),
+    0 48px 90px -20px rgba(22, 51, 0, 0.55),
+    0 18px 36px -12px rgba(22, 51, 0, 0.35);
+}
+
+/* Side buttons, for a phone that reads as a phone at a glance. */
+.phone::before,
+.phone::after {
+  content: '';
+  position: absolute;
+  width: 4px;
+  border-radius: 2px;
+  background: #0b0c0a;
+}
+
+.phone::before {
+  top: 170px;
+  left: -4px;
+  height: 64px;
+  box-shadow: 0 84px 0 #0b0c0a;
+}
+
+.phone::after {
+  top: 210px;
+  right: -4px;
+  height: 96px;
 }
 
 .phone__screen {
   position: relative;
   height: 100%;
-  border-radius: 48px;
+  border-radius: 51px;
   overflow: hidden;
-  background: var(--bg);
+  background: var(--bg-screen);
   display: flex;
   flex-direction: column;
   isolation: isolate;
+  transition: background-color 0.4s var(--ease);
 }
 
 .statusbar {
   position: relative;
+  z-index: 40;
   flex: none;
   height: 50px;
-  padding: 12px 30px 0;
+  padding: 12px 32px 0;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font-weight: 600;
+  color: var(--content-primary);
   font-size: 16px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
 }
 
 .statusbar__island {
   position: absolute;
   top: 11px;
   left: 50%;
-  width: 112px;
-  height: 32px;
-  margin-left: -56px;
+  width: 118px;
+  height: 34px;
+  margin-left: -59px;
   border-radius: 20px;
   background: #000;
 }
@@ -126,6 +161,24 @@ ul {
   display: flex;
   align-items: center;
   gap: 6px;
+}
+
+/* A coloured lock or onboarding screen colours the whole phone, status bar
+   included. (Only those: the voice sheet is forest too, but sits over Home.) */
+.phone__screen:has(> .app > :is(.lock, .onboarding).theme-green) {
+  background: var(--bright-green);
+}
+
+.phone__screen:has(> .app > :is(.lock, .onboarding).theme-green) .statusbar {
+  color: var(--forest-green);
+}
+
+.phone__screen:has(> .app > :is(.lock, .onboarding).theme-forest) {
+  background: var(--forest-green);
+}
+
+.phone__screen:has(> .app > :is(.lock, .onboarding).theme-forest) .statusbar {
+  color: #fff;
 }
 
 .app {
@@ -137,6 +190,19 @@ ul {
 }
 
 @media (max-width: 540px) {
+  body {
+    background: var(--bg-screen);
+  }
+
+  /* Safari tints its status bar from the page: keep it the colour of the screen. */
+  body:has(:is(.lock, .onboarding).theme-forest) {
+    background: var(--forest-green);
+  }
+
+  body:has(:is(.lock, .onboarding).theme-green) {
+    background: var(--bright-green);
+  }
+
   .stage {
     display: block;
     padding: 0;
@@ -147,8 +213,13 @@ ul {
     height: 100dvh;
     padding: 0;
     border-radius: 0;
-    background: var(--bg);
+    background: var(--bg-screen);
     box-shadow: none;
+  }
+
+  .phone::before,
+  .phone::after {
+    display: none;
   }
 
   .phone__screen {
@@ -164,6 +235,293 @@ ul {
   }
 }
 
+/* ---------- Type ---------- */
+
+/* Wise sets its big headlines in heavy capitals (Wise Sans). The text stays
+   sentence case in the markup, so a screen reader reads it normally. */
+.display {
+  font-family: var(--font-display);
+  font-size: 44px;
+  font-weight: 900;
+  line-height: 0.88;
+  letter-spacing: -0.012em;
+  text-transform: uppercase;
+  text-wrap: balance;
+  color: var(--content-primary);
+}
+
+.display--xl {
+  font-size: 56px;
+}
+
+.display--sm {
+  font-size: 34px;
+}
+
+.title {
+  font-size: 30px;
+  font-weight: 600;
+  line-height: 1.15;
+  letter-spacing: -0.025em;
+}
+
+.section-title {
+  font-size: 22px;
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+}
+
+.muted {
+  color: var(--content-secondary);
+}
+
+/* Amounts, as in Wise's calculator: heavy display figures, the currency code smaller. */
+.money {
+  font-family: var(--font-display);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--content-amount);
+  font-variant-numeric: lining-nums;
+  white-space: nowrap;
+}
+
+.money__shown {
+  position: relative;
+  isolation: isolate;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.2em;
+}
+
+.money__code {
+  font-size: 0.48em;
+  letter-spacing: 0;
+}
+
+/* Money came in: a bright green marker sweeps under the figure, then fades. */
+.money--up .money__shown::before {
+  content: '';
+  position: absolute;
+  inset: 4% -8px -4%;
+  z-index: -1;
+  border-radius: 10px;
+  background: var(--bright-green);
+  transform-origin: left center;
+  animation: money-marker 1.6s var(--ease) forwards;
+}
+
+/* Money went out: a small dip. */
+.money--down .money__shown {
+  animation: money-dip 0.6s var(--ease);
+}
+
+@keyframes money-marker {
+  0% {
+    opacity: 1;
+    transform: scaleX(0);
+  }
+
+  35% {
+    opacity: 1;
+    transform: scaleX(1);
+  }
+
+  100% {
+    opacity: 0;
+    transform: scaleX(1);
+  }
+}
+
+@keyframes money-dip {
+  40% {
+    transform: translateY(3px);
+    opacity: 0.75;
+  }
+}
+
+/* ---------- Buttons ---------- */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 48px;
+  padding: 0 22px;
+  border-radius: var(--radius-pill);
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: -0.011em;
+  white-space: nowrap;
+  -webkit-user-select: none;
+  user-select: none;
+  transition:
+    transform 0.16s var(--ease),
+    background-color 0.16s var(--ease),
+    color 0.16s var(--ease);
+}
+
+.btn:active {
+  transform: scale(0.97);
+}
+
+.btn--primary {
+  background: var(--btn-primary-bg);
+  color: var(--btn-primary-fg);
+}
+
+.btn--primary:active {
+  background: var(--btn-primary-active);
+}
+
+.btn--neutral {
+  background: var(--btn-neutral-bg);
+  color: var(--btn-neutral-fg);
+}
+
+.btn--neutral:active {
+  background: var(--btn-neutral-active);
+}
+
+/* Forest with bright green text, wherever it sits ("Learn how to send money" on wise.com). */
+.btn--dark {
+  background: var(--forest-green);
+  color: var(--bright-green);
+}
+
+.btn--block {
+  width: 100%;
+  min-height: 56px;
+  font-size: 18px;
+}
+
+/* Wise's tertiary action: underlined text. */
+.btn--link {
+  min-height: 48px;
+  padding: 0 4px;
+  border-radius: var(--radius-sm);
+  color: var(--content-link);
+  text-decoration: underline;
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 4px;
+}
+
+.btn[disabled] {
+  opacity: 0.45;
+  cursor: default;
+  transform: none;
+}
+
+@media (hover: hover) {
+  .btn--primary:hover:not([disabled]) {
+    background: var(--btn-primary-hover);
+  }
+
+  .btn--neutral:hover:not([disabled]) {
+    background: var(--btn-neutral-hover);
+  }
+
+  .btn--dark:hover:not([disabled]) {
+    background: #0d1f00;
+  }
+
+  .icon-btn:hover {
+    background: var(--btn-neutral-hover);
+  }
+}
+
+.icon-btn {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: var(--btn-neutral-bg);
+  color: var(--btn-neutral-fg);
+  transition:
+    transform 0.16s var(--ease),
+    background-color 0.16s var(--ease);
+}
+
+.icon-btn:active {
+  transform: scale(0.94);
+  background: var(--btn-neutral-active);
+}
+
+/* "Prototype": Wise's small status chip. */
+.tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 12px;
+  border-radius: var(--radius-pill);
+  background: var(--bg-neutral);
+  color: var(--interactive-primary);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0;
+}
+
+.tag::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.toast {
+  position: absolute;
+  left: 20px;
+  right: 20px;
+  bottom: 120px;
+  z-index: 60;
+  padding: 14px 20px;
+  border-radius: var(--radius-md);
+  background: var(--forest-green);
+  color: #fff;
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 1.4;
+  text-align: center;
+  box-shadow: 0 12px 32px rgba(22, 51, 0, 0.3);
+  animation: toast-in 0.35s var(--ease-spring);
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.96);
+  }
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+}
+
+@keyframes fade {
+  from {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
 /* ---------- Shared pieces ---------- */
 
 .screen {
@@ -176,129 +534,6 @@ ul {
 
 .screen::-webkit-scrollbar {
   display: none;
-}
-
-.title {
-  font-size: 34px;
-  line-height: 1.1;
-  font-weight: 700;
-  letter-spacing: -0.02em;
-}
-
-.section-title {
-  font-size: 26px;
-  line-height: 1.15;
-  font-weight: 650;
-  letter-spacing: -0.01em;
-}
-
-.muted {
-  color: var(--text-2);
-}
-
-.btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  min-height: 48px;
-  padding: 0 20px;
-  border-radius: 999px;
-  font-size: 17px;
-  font-weight: 650;
-  white-space: nowrap;
-  transition:
-    transform 0.12s var(--ease),
-    background-color 0.12s var(--ease);
-}
-
-.btn:active {
-  transform: scale(0.97);
-}
-
-.btn--primary {
-  background: var(--green);
-  color: var(--forest);
-}
-
-.btn--primary:hover {
-  background: var(--green-press);
-}
-
-.btn--dark {
-  background: var(--forest);
-  color: var(--green);
-}
-
-.btn--neutral {
-  background: var(--surface);
-  color: var(--text);
-}
-
-.btn--block {
-  width: 100%;
-  min-height: 56px;
-  font-size: 18px;
-}
-
-.btn[disabled] {
-  opacity: 0.5;
-  cursor: default;
-}
-
-.icon-btn {
-  display: inline-grid;
-  place-items: center;
-  flex: none;
-  width: 48px;
-  height: 48px;
-  border-radius: 50%;
-  background: var(--surface);
-  color: var(--text);
-}
-
-.tag {
-  display: inline-flex;
-  align-items: center;
-  height: 26px;
-  padding: 0 10px;
-  border: 1px solid var(--line-strong);
-  border-radius: 999px;
-  color: var(--text-2);
-  font-size: 13px;
-  font-weight: 600;
-}
-
-.toast {
-  position: absolute;
-  left: 20px;
-  right: 20px;
-  bottom: 124px;
-  z-index: 60;
-  padding: 14px 18px;
-  border-radius: var(--radius-md);
-  background: var(--surface-2);
-  color: var(--text);
-  font-size: 15px;
-  text-align: center;
-  animation: rise 0.25s var(--ease);
-}
-
-@keyframes rise {
-  from {
-    opacity: 0;
-    transform: translateY(12px);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-  }
 }
 
 /* The tabs and the tab bar. Made inert while a sheet covers them. */

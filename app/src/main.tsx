@@ -1,6 +1,8 @@
 // Styles first: tokens and base rules, so each component's own CSS (imported
 // through App) comes later and can refine them.
 import '@fontsource-variable/inter';
+// Stands in for Wise Sans, Wise's proprietary display face: headlines and big amounts.
+import '@fontsource-variable/schibsted-grotesk';
 import './styles/tokens.css';
 import './styles/base.css';
 

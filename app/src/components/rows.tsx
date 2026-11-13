@@ -32,8 +32,8 @@ export function TransactionRow({ transaction }: { transaction: Transaction }) {
   const Icon = incoming ? ArrowDown : ArrowUp;
   return (
     <li className="tx">
-      <span className="tx__icon" aria-hidden="true">
-        <Icon size={24} />
+      <span className={incoming ? 'tx__icon tx__icon--in' : 'tx__icon'} aria-hidden="true">
+        <Icon size={22} strokeWidth={2.2} />
       </span>
       <span className="tx__main">
         <span className="tx__title">{transaction.counterparty}</span>
@@ -54,14 +54,14 @@ export function LinkRow({ icon: Icon, title, text, onClick }: { icon: LucideIcon
   return (
     <li>
       <button type="button" className="link-row" onClick={onClick}>
-        <span className="tx__icon" aria-hidden="true">
+        <span className="tx__icon tx__icon--soft" aria-hidden="true">
           <Icon size={22} />
         </span>
         <span className="tx__main">
           <span className="tx__title">{title}</span>
           {text && <span className="tx__sub tx__sub--wrap">{text}</span>}
         </span>
-        <ChevronRight size={20} className="link-row__chevron" aria-hidden="true" />
+        <ChevronRight size={22} className="link-row__chevron" aria-hidden="true" />
       </button>
     </li>
   );

@@ -4,7 +4,9 @@
   flex: 1;
   flex-direction: column;
   min-height: 0;
-  padding: 8px 20px calc(28px + env(safe-area-inset-bottom));
+  padding: 8px 20px calc(24px + env(safe-area-inset-bottom));
+  background: var(--bg-screen);
+  transition: background-color 0.4s var(--ease);
 }
 
 .onboarding__head {
@@ -16,27 +18,35 @@
 
 .onboarding__dots {
   display: flex;
-  gap: 8px;
+  gap: 6px;
 }
 
 .onboarding__dot {
   width: 8px;
   height: 8px;
-  border-radius: 50%;
-  background: var(--surface-2);
+  border-radius: 4px;
+  background: var(--bg-neutral-active);
+  transition:
+    width 0.35s var(--ease),
+    background-color 0.35s var(--ease);
 }
 
 .onboarding__dot--on {
-  width: 24px;
-  border-radius: 4px;
-  background: var(--green);
+  width: 26px;
+  background: var(--interactive-primary);
 }
 
 .onboarding__body {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
-  padding-top: 32px;
+  padding-top: 28px;
+  scrollbar-width: none;
+  animation: step-in 0.45s var(--ease);
+}
+
+.onboarding__body::-webkit-scrollbar {
+  display: none;
 }
 
 .onboarding__body--centre {
@@ -50,107 +60,208 @@
 }
 
 .onboarding__lead {
-  max-width: 320px;
-  color: var(--text-2);
+  max-width: 330px;
+  color: var(--content-secondary);
   font-size: 18px;
   line-height: 1.45;
 }
 
+.theme-green .onboarding__lead {
+  font-weight: 500;
+}
+
+.onboarding__status {
+  min-height: 24px;
+  color: var(--content-secondary);
+  font-size: 15px;
+  font-weight: 600;
+}
+
 .onboarding__actions {
   display: grid;
-  gap: 12px;
+  gap: 10px;
   padding-top: 16px;
 }
 
-/* Wise sets its big headlines in heavy capitals. The text stays sentence case
-   in the markup, so a screen reader reads it normally. */
-.display {
-  font-size: 40px;
-  line-height: 0.98;
-  font-weight: 900;
-  letter-spacing: -0.03em;
-  text-transform: uppercase;
+@keyframes step-in {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
 }
 
-.hero-mic {
+/* ---------- The microphone with currencies circling it ---------- */
+
+.voice-hero {
   position: relative;
   display: grid;
+  flex: none;
   place-items: center;
-  width: 136px;
-  height: 136px;
-  margin-bottom: 12px;
-  border-radius: 50%;
-  background: var(--green);
-  color: var(--forest);
+  width: 230px;
+  height: 214px;
 }
 
-.hero-mic::before,
-.hero-mic::after {
-  content: '';
+.voice-hero__core {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  width: 128px;
+  height: 128px;
+  border-radius: 50%;
+  background: var(--forest-green);
+  color: var(--bright-green);
+  box-shadow: 0 22px 44px -16px rgba(22, 51, 0, 0.6);
+}
+
+.voice-hero__wave {
   position: absolute;
-  inset: -16px;
-  border: 2px solid var(--green);
+  z-index: 1;
+  width: 128px;
+  height: 128px;
+  border: 2px solid var(--forest-green);
   border-radius: 50%;
-  opacity: 0.35;
-  animation: ring 2.4s ease-out infinite;
+  opacity: 0;
+  animation: hero-wave 3.6s cubic-bezier(0.2, 0.6, 0.3, 1) infinite;
 }
 
-.hero-mic::after {
+.voice-hero__wave:nth-child(2) {
   animation-delay: 1.2s;
 }
 
-.hero-mic--quiet::before,
-.hero-mic--quiet::after {
-  animation: none;
-  opacity: 0.2;
+.voice-hero__wave:nth-child(3) {
+  animation-delay: 2.4s;
 }
 
-@keyframes ring {
-  from {
-    transform: scale(0.9);
+.voice-hero__coin {
+  position: absolute;
+  z-index: 3;
+  display: grid;
+  border-radius: 50%;
+  box-shadow:
+    0 0 0 4px #fff,
+    0 14px 24px -8px rgba(22, 51, 0, 0.5);
+  animation: coin-float 5.5s ease-in-out infinite;
+}
+
+.voice-hero__coin--eur {
+  top: 4px;
+  right: 10px;
+  animation-delay: -1s;
+}
+
+.voice-hero__coin--gbp {
+  bottom: 22px;
+  left: 6px;
+  animation-delay: -2.8s;
+}
+
+.voice-hero__coin--usd {
+  right: 34px;
+  bottom: 4px;
+  animation-delay: -4.2s;
+}
+
+/* On white: a bright green disc with forest rings. */
+.voice-hero--quiet .voice-hero__core {
+  background: var(--bright-green);
+  color: var(--forest-green);
+  box-shadow: 0 22px 44px -18px rgba(22, 51, 0, 0.45);
+}
+
+.voice-hero--quiet .voice-hero__wave {
+  border-color: var(--bright-green);
+  border-width: 3px;
+}
+
+@keyframes hero-wave {
+  0% {
     opacity: 0.5;
+    transform: scale(1);
   }
 
-  to {
-    transform: scale(1.35);
+  100% {
     opacity: 0;
+    transform: scale(1.75);
   }
 }
+
+@keyframes coin-float {
+  0%,
+  100% {
+    transform: translateY(0) rotate(-5deg);
+  }
+
+  50% {
+    transform: translateY(-10px) rotate(5deg);
+  }
+}
+
+/* ---------- Face ID on a disc ---------- */
+
+.faceid-stage {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 176px;
+  height: 176px;
+  margin-bottom: 4px;
+  border-radius: 50%;
+  background: var(--bg-neutral);
+}
+
+.theme-green .faceid-stage {
+  background: rgba(255, 255, 255, 0.4);
+}
+
+/* ---------- What you can do ---------- */
 
 .abilities {
   display: grid;
-  gap: 28px;
+  gap: 24px;
   margin-top: 32px;
 }
 
 .ability {
   display: flex;
   gap: 16px;
+  animation: rise 0.5s var(--ease) backwards;
+}
+
+.ability:nth-child(2) {
+  animation-delay: 80ms;
+}
+
+.ability:nth-child(3) {
+  animation-delay: 160ms;
 }
 
 .ability__icon {
   display: grid;
-  place-items: center;
   flex: none;
+  place-items: center;
   width: 52px;
   height: 52px;
   border-radius: 50%;
-  background: var(--forest);
-  color: var(--green);
+  background: var(--bright-green);
+  color: var(--forest-green);
 }
 
 .ability__title {
   display: block;
+  padding-top: 2px;
   font-size: 18px;
-  font-weight: 650;
+  font-weight: 600;
+  line-height: 1.3;
+  letter-spacing: -0.015em;
 }
 
 .ability__text {
   display: block;
   margin-top: 4px;
-  color: var(--text-2);
-  font-size: 16px;
-  line-height: 1.4;
+  color: var(--content-secondary);
+  font-size: 15px;
+  line-height: 1.5;
 }
 
 /* ---------- Lock ---------- */
@@ -161,18 +272,22 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 16px;
+  gap: 20px;
   text-align: center;
 }
 
 .lock__title {
-  margin-top: 12px;
-  font-size: 28px;
-  font-weight: 700;
-  letter-spacing: -0.02em;
+  max-width: 330px;
+}
+
+.lock__status {
+  min-height: 24px;
+  color: var(--content-secondary);
+  font-size: 16px;
+  font-weight: 600;
 }
 
 .lock .tag {
   align-self: flex-start;
-  margin-top: 12px;
+  margin-top: 10px;
 }

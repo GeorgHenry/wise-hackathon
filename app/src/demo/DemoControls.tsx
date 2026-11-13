@@ -1,3 +1,4 @@
+import { ArrowDownLeft, Lock, Play, RotateCcw } from 'lucide-react';
 import type { BankStore } from '../bank/store';
 import { useBank } from '../bank/useBank';
 import { type LiveHealth, liveAgentInstalled, liveReady } from '../voice/liveAgent';
@@ -115,16 +116,20 @@ export function DemoControls({ open, store, settings, agentMode, live, onSetting
       </div>
 
       <div className="demo__buttons">
-        <button type="button" className="btn btn--primary" onClick={() => store.simulateIncoming({ from: 'Kadri Tamm', amount: 40, currency: 'GBP' })}>
+        <button type="button" className="btn btn--primary demo__arrive" onClick={() => store.simulateIncoming({ from: 'Kadri Tamm', amount: 40, currency: 'GBP' })}>
+          <ArrowDownLeft size={18} strokeWidth={2.4} aria-hidden="true" />
           Money arrives from Kadri
         </button>
         <button type="button" className="btn btn--neutral" onClick={onLock}>
+          <Lock size={16} strokeWidth={2.2} aria-hidden="true" />
           Lock the app
         </button>
         <button type="button" className="btn btn--neutral" onClick={onReplayOnboarding}>
+          <Play size={16} strokeWidth={2.2} aria-hidden="true" />
           Replay onboarding
         </button>
-        <button type="button" className="btn btn--neutral" onClick={onReset}>
+        <button type="button" className="btn btn--link demo__reset" onClick={onReset}>
+          <RotateCcw size={16} strokeWidth={2.2} aria-hidden="true" />
           Reset the demo
         </button>
       </div>

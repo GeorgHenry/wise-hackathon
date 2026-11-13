@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
-import { formatMoney } from '../bank/money';
 import type { BankStore } from '../bank/store';
 import type { PreparedTransfer } from '../bank/types';
 import { useBank } from '../bank/useBank';
+import { Money } from '../components/Money';
 import { FaceId, useFaceIdScan } from './FaceId';
 
 export interface ApprovalRequest {
@@ -74,14 +74,18 @@ export function ApprovalSheet({ request, faceIdPasses }: ApprovalSheetProps) {
   return (
     <div className="approval">
       <div className="approval__sheet" role="alertdialog" aria-modal="true" aria-labelledby="approval-title" aria-describedby="approval-status">
-        <FaceId state={state} size={88} />
+        <span className="approval__grabber" aria-hidden="true" />
+        <span className="approval__face">
+          <FaceId state={state} size={84} />
+        </span>
         <h2 id="approval-title" className="approval__title">
           Confirm with Face ID
         </h2>
         <p className="approval__amount">
-          {formatMoney(transfer.targetAmount, transfer.targetCurrency)} to {transfer.recipientName}
+          <Money amount={transfer.targetAmount} currency={transfer.targetCurrency} />
+          <span className="approval__to">to {transfer.recipientName}</span>
         </p>
-        <p id="approval-status" className="muted" role="status">
+        <p id="approval-status" className={`approval__status approval__status--${state}`} role="status">
           {STATUS[state]}
         </p>
       </div>

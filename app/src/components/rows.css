@@ -4,78 +4,119 @@
   border-radius: 50%;
 }
 
+/* ---------- Avatars ---------- */
+
 .avatar {
   position: relative;
   display: inline-grid;
   place-items: center;
   flex: none;
-  width: 44px;
-  height: 44px;
+  width: 48px;
+  height: 48px;
   border-radius: 50%;
-  background: var(--surface);
+  background: var(--bg-neutral);
+  color: var(--interactive-primary);
   font-size: 16px;
-  font-weight: 650;
+  font-weight: 600;
+  letter-spacing: 0;
 }
 
 .avatar--lg {
   width: 56px;
   height: 56px;
-  border: 1px solid var(--line-strong);
-  background: transparent;
-  font-size: 20px;
+  font-size: 19px;
 }
 
 .avatar__flag {
   position: absolute;
-  right: -4px;
-  bottom: -4px;
+  right: -3px;
+  bottom: -3px;
   border-radius: 50%;
-  box-shadow: 0 0 0 2px var(--bg);
+  box-shadow: 0 0 0 2px var(--bg-screen);
 }
+
+.vcard .avatar__flag {
+  box-shadow: 0 0 0 2px var(--bg-elevated);
+}
+
+/* ---------- List rows, Wise's list item ---------- */
 
 .tx,
 .link-row {
   display: flex;
   align-items: center;
   gap: 16px;
-  min-height: 76px;
+  min-height: 72px;
   width: 100%;
   text-align: left;
 }
 
 .tx {
-  animation: rise 0.35s var(--ease);
+  animation: rise 0.35s var(--ease) backwards;
 }
 
+.tx:nth-child(2) {
+  animation-delay: 40ms;
+}
+
+.tx:nth-child(3) {
+  animation-delay: 80ms;
+}
+
+.tx:nth-child(4) {
+  animation-delay: 120ms;
+}
+
+.tx:nth-child(n + 5) {
+  animation-delay: 160ms;
+}
+
+/* The circle with a hairline border, as in Wise's activity list. */
 .tx__icon {
   display: grid;
   place-items: center;
   flex: none;
-  width: 52px;
-  height: 52px;
-  border: 1px solid var(--line-strong);
+  width: 48px;
+  height: 48px;
+  border: 1px solid var(--border-neutral);
   border-radius: 50%;
+  color: var(--content-primary);
+}
+
+.tx__icon--in {
+  border-color: transparent;
+  background: var(--sentiment-positive-bg);
+  color: var(--sentiment-positive);
+}
+
+.tx__icon--soft {
+  border-color: transparent;
+  background: var(--bg-neutral);
+  color: var(--interactive-primary);
 }
 
 .tx__main {
   display: grid;
   flex: 1;
   min-width: 0;
-  gap: 2px;
+  gap: 1px;
 }
 
 .tx__title {
   overflow: hidden;
-  font-size: 17px;
-  font-weight: 650;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.4;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .tx__sub {
   overflow: hidden;
-  color: var(--text-2);
-  font-size: 15px;
+  color: var(--content-secondary);
+  font-size: 14px;
+  line-height: 1.45;
+  letter-spacing: -0.006em;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -85,18 +126,20 @@
 }
 
 .tx__amount {
-  font-size: 17px;
-  font-weight: 650;
+  font-size: 16px;
+  font-weight: 600;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
 
 .tx__amount--in {
-  color: var(--green);
+  color: var(--sentiment-positive);
 }
 
 .link-row {
   padding: 8px 0;
+  border-radius: var(--radius-md);
+  transition: background-color 0.16s var(--ease);
 }
 
 .link-row .tx__title {
@@ -105,5 +148,13 @@
 
 .link-row__chevron {
   flex: none;
-  color: var(--green);
+  color: var(--content-tertiary);
+  transition: transform 0.16s var(--ease);
+}
+
+@media (hover: hover) {
+  .link-row:hover .link-row__chevron {
+    transform: translateX(3px);
+    color: var(--interactive-primary);
+  }
 }

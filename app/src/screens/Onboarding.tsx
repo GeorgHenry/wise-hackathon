@@ -1,6 +1,7 @@
-import { ArrowDownToLine, ChevronLeft, Mic, Send, Wallet } from 'lucide-react';
+import { ArrowDownToLine, ChevronLeft, Send, Wallet } from 'lucide-react';
 import { useState } from 'react';
 import { FaceId, useFaceIdScan } from '../auth/FaceId';
+import { VoiceHero } from '../components/VoiceHero';
 import './Onboarding.css';
 
 // The idea of onboarding in four screens: what Wise Voice is, what it can do,
@@ -39,7 +40,8 @@ export function Onboarding({ requestMicrophone, onDone, onSkip }: OnboardingProp
   }
 
   return (
-    <div className="onboarding">
+    // The first screen is bright green, like the top of wise.com; the rest are white.
+    <div className={step === 0 ? 'onboarding theme-green' : 'onboarding'}>
       <header className="onboarding__head">
         {step > 0 ? (
           <button type="button" className="icon-btn" aria-label="Back" onClick={() => setStep((s) => s - 1)}>
@@ -57,11 +59,9 @@ export function Onboarding({ requestMicrophone, onDone, onSkip }: OnboardingProp
 
       {step === 0 && (
         <>
-          <div className="onboarding__body onboarding__body--centre">
-            <span className="hero-mic" aria-hidden="true">
-              <Mic size={56} />
-            </span>
-            <h1 className="display">Bank by talking</h1>
+          <div key="welcome" className="onboarding__body onboarding__body--centre">
+            <VoiceHero />
+            <h1 className="display display--xl">Bank by talking</h1>
             <p className="onboarding__lead">
               Wise Voice lets you check your balance, send money and hear when money arrives, without reading a screen.
             </p>
@@ -70,7 +70,7 @@ export function Onboarding({ requestMicrophone, onDone, onSkip }: OnboardingProp
             <button type="button" className="btn btn--primary btn--block" onClick={next}>
               Get started
             </button>
-            <button type="button" className="btn btn--dark btn--block" onClick={onSkip}>
+            <button type="button" className="btn btn--neutral btn--block" onClick={onSkip}>
               I already use Wise Voice
             </button>
           </div>
@@ -79,13 +79,13 @@ export function Onboarding({ requestMicrophone, onDone, onSkip }: OnboardingProp
 
       {step === 1 && (
         <>
-          <div className="onboarding__body">
-            <h1 className="title">What you can do with Wise Voice</h1>
+          <div key="abilities" className="onboarding__body">
+            <h1 className="display">What you can do with Wise Voice</h1>
             <ul className="abilities">
               {ABILITIES.map(({ icon: Icon, title, text }) => (
                 <li key={title} className="ability">
                   <span className="ability__icon" aria-hidden="true">
-                    <Icon size={24} />
+                    <Icon size={24} strokeWidth={2.2} />
                   </span>
                   <span>
                     <strong className="ability__title">{title}</strong>
@@ -105,13 +105,15 @@ export function Onboarding({ requestMicrophone, onDone, onSkip }: OnboardingProp
 
       {step === 2 && (
         <>
-          <div className="onboarding__body onboarding__body--centre">
-            <FaceId state={state} size={120} />
+          <div key="faceid" className="onboarding__body onboarding__body--centre">
+            <span className="faceid-stage">
+              <FaceId state={state} size={112} />
+            </span>
             <h1 className="display">Stay secure with Face ID</h1>
             <p className="onboarding__lead">
               Your face or fingerprint unlocks Wise Voice and approves every payment. Your voice alone can never move money.
             </p>
-            <p className="muted" role="status">
+            <p className="onboarding__status" role="status">
               {state === 'scanning' ? 'Checking it is you…' : state === 'success' ? 'Face ID is set up.' : ''}
             </p>
           </div>
@@ -125,10 +127,8 @@ export function Onboarding({ requestMicrophone, onDone, onSkip }: OnboardingProp
 
       {step === 3 && (
         <>
-          <div className="onboarding__body onboarding__body--centre">
-            <span className="hero-mic hero-mic--quiet" aria-hidden="true">
-              <Mic size={56} />
-            </span>
+          <div key="mic" className="onboarding__body onboarding__body--centre">
+            <VoiceHero coins={false} />
             <h1 className="display">Let Wise Voice hear you</h1>
             <p className="onboarding__lead">
               Wise Voice listens only while a voice session is open, and you can end it at any moment.
@@ -138,7 +138,7 @@ export function Onboarding({ requestMicrophone, onDone, onSkip }: OnboardingProp
             <button type="button" className="btn btn--primary btn--block" onClick={() => void allowMicrophone()}>
               Allow microphone
             </button>
-            <button type="button" className="btn btn--dark btn--block" onClick={onDone}>
+            <button type="button" className="btn btn--neutral btn--block" onClick={onDone}>
               Not now
             </button>
           </div>

@@ -22,7 +22,7 @@ interface TabBarProps {
 export function TabBar({ tab, onTab, onMic }: TabBarProps) {
   const button = ({ id, label, icon: Icon }: (typeof LEFT)[number]) => (
     <button key={id} type="button" className="tabbar__tab" aria-current={tab === id ? 'page' : undefined} onClick={() => onTab(id)}>
-      <Icon size={24} aria-hidden="true" />
+      <Icon size={24} strokeWidth={tab === id ? 2.3 : 1.9} aria-hidden="true" />
       {label}
     </button>
   );
@@ -31,7 +31,12 @@ export function TabBar({ tab, onTab, onMic }: TabBarProps) {
     <nav className="tabbar" aria-label="Main">
       {LEFT.map(button)}
       <button type="button" className="tabbar__mic" aria-label="Talk to Wise Voice" onClick={onMic}>
-        <Mic size={30} aria-hidden="true" />
+        <span className="tabbar__disc">
+          <Mic size={28} strokeWidth={2.3} aria-hidden="true" />
+        </span>
+        <span className="tabbar__mic-label" aria-hidden="true">
+          Voice
+        </span>
       </button>
       {RIGHT.map(button)}
     </nav>

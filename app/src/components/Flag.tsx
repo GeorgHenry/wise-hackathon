@@ -17,6 +17,7 @@ export function Flag({ currency, size = 32 }: { currency: Currency; size?: numbe
         {STARS.map((star) => (
           <circle key={`${star.x}-${star.y}`} cx={star.x} cy={star.y} r="1.3" fill="#ffcc00" />
         ))}
+        <Rim />
       </svg>
     );
   }
@@ -32,6 +33,7 @@ export function Flag({ currency, size = 32 }: { currency: Currency; size?: numbe
           <path d="M0 2.5h32M0 7.4h32M0 12.3h32M0 17.2h32M0 22.1h32M0 27h32M0 31.9h32" stroke="#b22234" strokeWidth="2.5" />
           <rect width="15" height="17.2" fill="#3c3b6e" />
         </g>
+        <Rim />
       </svg>
     );
   }
@@ -48,6 +50,12 @@ export function Flag({ currency, size = 32 }: { currency: Currency; size?: numbe
         <path d="M16 0v32M0 16h32" stroke="#fff" strokeWidth="9" />
         <path d="M16 0v32M0 16h32" stroke="#c8102e" strokeWidth="5" />
       </g>
+      <Rim />
     </svg>
   );
+}
+
+/** A hairline round the edge, so a flag holds its shape on white, as Wise draws them. */
+function Rim() {
+  return <circle cx="16" cy="16" r="15.6" fill="none" stroke="rgba(14, 15, 12, 0.14)" strokeWidth="0.8" />;
 }

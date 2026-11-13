@@ -1,32 +1,155 @@
-/* Colours and type for the dark Wise-style theme. Values were picked by eye
-   from the user's screenshots; they are not Wise's published tokens. */
+/* Wise Voice design tokens.
+
+   The colours, radii, shadows and type sizes are Wise's own: the "Neptune"
+   personal theme, read from wise.com's stylesheets on 2026-11-13. Wise Sans,
+   their heavy all-caps display face, is proprietary, so Schibsted Grotesk Black
+   stands in for it. Inter is the same text face Wise uses.
+
+   Three surfaces, as on wise.com:
+   - light  (default): white screens, forest text, bright green buttons
+   - green  (.theme-green): bright green screens with forest text and buttons
+   - forest (.theme-forest): forest green screens with bright green text
+
+   Components use only the semantic names below, so one rule works on all three. */
+
 :root {
-  --page: #0a0c09;
-  --bg: #121511;
-  --bg-raised: #1b1e1a;
-  --surface: #262a25;
-  --surface-2: #31362f;
-  --line: rgba(255, 255, 255, 0.1);
-  --line-strong: rgba(255, 255, 255, 0.22);
+  /* Brand */
+  --bright-green: #9fe870;
+  --forest-green: #163300;
+  --bright-yellow: #ffeb69;
+  --bright-blue: #a0e1e1;
+  --bright-orange: #ffc091;
+  --bright-pink: #ffd7ef;
+  --near-black: #0e0f0c;
 
-  --text: #f1f3ee;
-  --text-2: #b9beb4;
-  --text-3: #8f958a;
-
-  --green: #9fe870;
-  --green-press: #8bd95a;
-  --forest: #163300;
-  --forest-2: #1f420a;
-
-  --danger: #ff8a80;
-  --danger-bg: #3b1613;
-  --warn: #ffd166;
-  --blue: #4aa3ff;
-
+  /* Type */
   --font: 'Inter Variable', Inter, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-display: 'Schibsted Grotesk Variable', 'Inter Variable', Inter, system-ui, sans-serif;
 
-  --radius-lg: 28px;
-  --radius-md: 20px;
-  --radius-sm: 12px;
+  /* Shape: Wise's radius scale */
+  --radius-sm: 10px;
+  --radius-md: 16px;
+  --radius-lg: 24px;
+  --radius-xl: 32px;
+  --radius-pill: 9999px;
+
+  /* Depth: Wise's raised-card shadow, and a softer one for floating controls */
+  --shadow-card: 0 10px 32px rgba(0, 0, 0, 0.15), 0 40px 40px rgba(0, 0, 0, 0.04);
+  --shadow-float: 0 10px 30px rgba(14, 15, 12, 0.12), 0 1px 3px rgba(14, 15, 12, 0.08);
+
+  /* Motion */
   --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --ease-spring: cubic-bezier(0.34, 1.36, 0.64, 1);
+}
+
+/* Light, the default. Cards keep it even on darker surfaces. */
+:root,
+.theme-light,
+.vcard {
+  --bg-screen: #ffffff;
+  --bg-elevated: #ffffff;
+  --bg-neutral: rgba(22, 51, 0, 0.078);
+  --bg-neutral-hover: rgba(22, 51, 0, 0.129);
+  --bg-neutral-active: rgba(22, 51, 0, 0.18);
+  --border-neutral: rgba(14, 15, 12, 0.12);
+
+  --content-primary: #0e0f0c;
+  --content-secondary: #454745;
+  --content-tertiary: #6a6c6a;
+  --content-link: #163300;
+  /* Big amounts are set in forest green, as in Wise's calculator. */
+  --content-amount: #163300;
+
+  --interactive-primary: #163300;
+  --interactive-primary-hover: #0d1f00;
+
+  --sentiment-positive: #054d28;
+  --sentiment-positive-bg: #e2f6d5;
+  --sentiment-negative: #cb272f;
+  --sentiment-negative-bg: #fbeaea;
+  --sentiment-warning-content: #4a3b1c;
+  --sentiment-warning-bg: #fff7d7;
+
+  --btn-primary-bg: #9fe870;
+  --btn-primary-fg: #163300;
+  --btn-primary-hover: #80e142;
+  --btn-primary-active: #65cf21;
+  --btn-neutral-bg: rgba(22, 51, 0, 0.078);
+  --btn-neutral-fg: #163300;
+  --btn-neutral-hover: rgba(22, 51, 0, 0.129);
+  --btn-neutral-active: rgba(22, 51, 0, 0.18);
+
+  --focus-ring: #163300;
+}
+
+/* Bright green surfaces, like wise.com's calculator section. */
+.theme-green,
+.vcard--green {
+  --bg-screen: #9fe870;
+  --bg-elevated: #9fe870;
+  --bg-neutral: rgba(22, 51, 0, 0.1);
+  --bg-neutral-hover: rgba(22, 51, 0, 0.16);
+  --bg-neutral-active: rgba(22, 51, 0, 0.22);
+  --border-neutral: rgba(22, 51, 0, 0.2);
+
+  --content-primary: #163300;
+  --content-secondary: #163300;
+  --content-tertiary: rgba(22, 51, 0, 0.8);
+  --content-link: #163300;
+  --content-amount: #163300;
+
+  --interactive-primary: #163300;
+  --interactive-primary-hover: #0d1f00;
+
+  --sentiment-negative: #a72027;
+
+  --btn-primary-bg: #163300;
+  --btn-primary-fg: #9fe870;
+  --btn-primary-hover: #0d1f00;
+  --btn-primary-active: #0e0f0c;
+  --btn-neutral-bg: rgba(22, 51, 0, 0.1);
+  --btn-neutral-fg: #163300;
+  --btn-neutral-hover: rgba(22, 51, 0, 0.16);
+  --btn-neutral-active: rgba(22, 51, 0, 0.22);
+
+  --focus-ring: #163300;
+}
+
+/* Forest green surfaces: the voice sheet. */
+.theme-forest {
+  --bg-screen: #163300;
+  --bg-elevated: #223d0d;
+  --bg-neutral: rgba(255, 255, 255, 0.1);
+  --bg-neutral-hover: rgba(255, 255, 255, 0.2);
+  --bg-neutral-active: rgba(255, 255, 255, 0.3);
+  --border-neutral: rgba(255, 255, 255, 0.2);
+
+  --content-primary: #9fe870;
+  --content-secondary: #e8ebe6;
+  --content-tertiary: #d0d5ce;
+  --content-link: #9fe870;
+  --content-amount: #9fe870;
+
+  --interactive-primary: #9fe870;
+  --interactive-primary-hover: #cdffad;
+
+  --sentiment-positive: #bae5a0;
+  --sentiment-negative: #ffa8ad;
+
+  --btn-primary-bg: #9fe870;
+  --btn-primary-fg: #163300;
+  --btn-primary-hover: #cdffad;
+  --btn-primary-active: #ecffe0;
+  --btn-neutral-bg: rgba(255, 255, 255, 0.1);
+  --btn-neutral-fg: #9fe870;
+  --btn-neutral-hover: rgba(255, 255, 255, 0.2);
+  --btn-neutral-active: rgba(255, 255, 255, 0.3);
+
+  --focus-ring: #9fe870;
+}
+
+.theme-light,
+.theme-green,
+.theme-forest {
+  color: var(--content-primary);
 }

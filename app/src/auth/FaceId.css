@@ -1,17 +1,17 @@
 .faceid {
   position: relative;
   display: inline-grid;
-  color: var(--blue);
-  transition: color 0.2s var(--ease);
+  color: var(--interactive-primary);
+  transition: color 0.25s var(--ease);
 }
 
-.faceid--success {
-  color: var(--green);
+.faceid--success svg {
+  animation: faceid-pop 0.45s var(--ease-spring);
 }
 
 .faceid--fail {
-  color: var(--danger);
-  animation: faceid-shake 0.4s var(--ease);
+  color: var(--sentiment-negative);
+  animation: faceid-shake 0.42s var(--ease);
 }
 
 .faceid--scanning svg {
@@ -20,25 +20,26 @@
 
 .faceid__beam {
   position: absolute;
-  left: 16%;
-  right: 16%;
   top: 18%;
-  height: 3px;
+  left: 14%;
+  right: 14%;
+  height: 4px;
   border-radius: 2px;
   background: currentColor;
-  opacity: 0.8;
+  box-shadow: 0 0 16px 2px currentColor;
+  opacity: 0.7;
   animation: faceid-sweep 1.1s ease-in-out infinite alternate;
 }
 
 .faceid__check {
   stroke-dasharray: 60;
   stroke-dashoffset: 60;
-  animation: faceid-draw 0.35s var(--ease) forwards;
+  animation: faceid-draw 0.4s var(--ease) 0.05s forwards;
 }
 
 @keyframes faceid-pulse {
   50% {
-    opacity: 0.55;
+    opacity: 0.5;
   }
 }
 
@@ -54,52 +55,110 @@
   }
 }
 
-@keyframes faceid-shake {
-  25% {
-    transform: translateX(-6px);
-  }
-
-  75% {
-    transform: translateX(6px);
+@keyframes faceid-pop {
+  40% {
+    transform: scale(1.08);
   }
 }
 
-/* The sheet that asks for Face ID before a payment. */
+@keyframes faceid-shake {
+  20%,
+  60% {
+    transform: translateX(-7px);
+  }
+
+  40%,
+  80% {
+    transform: translateX(7px);
+  }
+}
+
+/* ---------- The sheet that asks for Face ID before a payment ---------- */
+
 .approval {
   position: absolute;
   inset: 0;
   z-index: 50;
   display: flex;
   align-items: flex-end;
-  background: rgba(0, 0, 0, 0.6);
+  background: rgba(14, 15, 12, 0.55);
+  -webkit-backdrop-filter: blur(2px);
+  backdrop-filter: blur(2px);
   animation: fade 0.2s ease-out;
 }
 
 .approval__sheet {
   display: grid;
   justify-items: center;
-  gap: 12px;
+  gap: 10px;
   width: 100%;
-  padding: 32px 24px calc(40px + env(safe-area-inset-bottom));
-  border-radius: 32px 32px 0 0;
-  background: var(--surface);
+  padding: 10px 24px calc(36px + env(safe-area-inset-bottom));
+  border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+  background: var(--bg-elevated);
+  color: var(--content-primary);
   text-align: center;
-  animation: rise 0.25s var(--ease);
+  box-shadow: 0 -16px 48px rgba(14, 15, 12, 0.3);
+  animation: approval-in 0.4s var(--ease);
+}
+
+.approval__grabber {
+  width: 40px;
+  height: 5px;
+  margin-bottom: 14px;
+  border-radius: 3px;
+  background: var(--border-neutral);
+}
+
+.approval__face {
+  display: grid;
+  place-items: center;
+  width: 136px;
+  height: 136px;
+  margin-bottom: 6px;
+  border-radius: 50%;
+  background: var(--bg-neutral);
 }
 
 .approval__title {
-  margin-top: 8px;
   font-size: 22px;
-  font-weight: 650;
+  font-weight: 600;
+  letter-spacing: -0.02em;
 }
 
 .approval__amount {
-  font-size: 17px;
-  font-variant-numeric: tabular-nums;
+  display: grid;
+  justify-items: center;
+  gap: 6px;
 }
 
-@keyframes fade {
+.approval__amount .money {
+  font-size: 40px;
+  line-height: 1;
+}
+
+.approval__to {
+  color: var(--content-secondary);
+  font-size: 16px;
+}
+
+.approval__status {
+  min-height: 24px;
+  margin-top: 6px;
+  color: var(--content-secondary);
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.approval__status--success {
+  color: var(--sentiment-positive);
+}
+
+.approval__status--fail {
+  color: var(--sentiment-negative);
+}
+
+@keyframes approval-in {
   from {
-    opacity: 0;
+    transform: translateY(100%);
   }
 }

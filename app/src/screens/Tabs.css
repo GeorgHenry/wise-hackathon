@@ -1,41 +1,45 @@
 .tab__title {
-  padding: 60px 0 20px;
+  padding: 48px 0 20px;
 }
 
 .tab__hint {
-  margin: 12px 0 8px;
-  font-size: 15px;
+  margin: 12px 0 4px;
+  color: var(--content-secondary);
+  font-size: 14px;
+  line-height: 1.5;
 }
 
 .tab__empty {
   padding: 40px 0;
-  color: var(--text-2);
+  color: var(--content-secondary);
   text-align: center;
 }
 
 .tab__group {
-  margin: 32px 0 4px;
-  padding-bottom: 12px;
-  border-bottom: 1px solid var(--line);
-  color: var(--text-2);
-  font-size: 16px;
-  font-weight: 500;
+  margin: 28px 0 4px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--border-neutral);
+  color: var(--content-secondary);
+  font-size: 14px;
+  font-weight: 600;
 }
+
+/* ---------- Search ---------- */
 
 .search {
   display: flex;
   align-items: center;
   gap: 12px;
   height: 52px;
-  padding: 0 16px;
-  border-radius: 26px;
-  background: var(--surface);
-  color: var(--text-2);
+  padding: 0 18px;
+  border-radius: var(--radius-pill);
+  background: var(--bg-neutral);
+  color: var(--content-secondary);
+  transition: box-shadow 0.16s var(--ease);
 }
 
 .search:focus-within {
-  outline: 2px solid var(--green);
-  outline-offset: 2px;
+  box-shadow: inset 0 0 0 2px var(--interactive-primary);
 }
 
 .search input {
@@ -44,58 +48,100 @@
   border: 0;
   outline: 0;
   background: none;
-  color: var(--text);
-  font-size: 17px;
+  color: var(--content-primary);
+  font-size: 16px;
 }
 
 .search input::placeholder {
-  color: var(--text-3);
+  color: var(--content-tertiary);
 }
+
+/* ---------- Card ---------- */
 
 .card-art {
   position: relative;
+  overflow: hidden;
   aspect-ratio: 1.586;
   border-radius: 20px;
-  background: var(--green);
-  color: var(--forest);
+  background: var(--bright-green);
+  color: var(--forest-green);
+  box-shadow:
+    0 24px 40px -16px rgba(22, 51, 0, 0.45),
+    inset 0 0 0 1px rgba(22, 51, 0, 0.06);
+}
+
+/* Sound waves rolling off the right edge: the voice on the card. */
+.card-art__waves {
+  position: absolute;
+  top: 50%;
+  right: -120px;
+  width: 300px;
+  height: 300px;
+  margin-top: -150px;
+  border-radius: 50%;
+  background: repeating-radial-gradient(circle, transparent 0 22px, rgba(22, 51, 0, 0.08) 22px 34px);
 }
 
 .card-art__name {
   position: absolute;
-  top: 20px;
-  right: 24px;
+  top: 22px;
+  left: 24px;
+  font-family: var(--font-display);
   font-size: 26px;
-  font-weight: 800;
-  letter-spacing: -0.03em;
+  font-weight: 900;
+  line-height: 0.9;
+  letter-spacing: -0.01em;
+  text-transform: uppercase;
+}
+
+.card-art__nfc {
+  position: absolute;
+  top: 22px;
+  right: 22px;
 }
 
 .card-art__chip {
   position: absolute;
   top: 42%;
-  left: 28px;
-  width: 44px;
-  height: 34px;
+  left: 24px;
+  width: 46px;
+  height: 36px;
   border-radius: 8px;
-  background: #e9e3c8;
+  background:
+    linear-gradient(90deg, transparent 30%, rgba(90, 80, 40, 0.3) 30% 32%, transparent 32% 68%, rgba(90, 80, 40, 0.3) 68% 70%, transparent 70%),
+    linear-gradient(0deg, transparent 45%, rgba(90, 80, 40, 0.3) 45% 50%, transparent 50%),
+    linear-gradient(135deg, #f6efd2, #cdbf8c);
+}
+
+.card-art__number {
+  position: absolute;
+  bottom: 22px;
+  left: 24px;
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  font-variant-numeric: tabular-nums;
 }
 
 .card-art__kind {
   position: absolute;
   right: 24px;
-  bottom: 20px;
-  font-size: 15px;
-  font-weight: 650;
+  bottom: 22px;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
 .card-caption {
-  margin: 20px 0;
-  font-size: 18px;
-  font-weight: 650;
+  margin: 20px 0 24px;
+  font-size: 17px;
+  font-weight: 600;
   text-align: center;
 }
 
 .card-caption .muted {
-  margin-right: 12px;
+  margin-right: 10px;
   font-weight: 400;
 }
 
@@ -108,17 +154,33 @@
   display: grid;
   justify-items: center;
   gap: 8px;
-  color: var(--green);
-  font-size: 15px;
-  font-weight: 650;
+  padding: 4px 0;
+  border-radius: var(--radius-md);
+  color: var(--interactive-primary);
+  font-size: 14px;
+  font-weight: 600;
 }
 
 .card-action__icon {
   display: grid;
   place-items: center;
-  width: 64px;
-  height: 64px;
+  width: 60px;
+  height: 60px;
   border-radius: 50%;
-  background: var(--green);
-  color: var(--forest);
+  background: var(--bg-neutral);
+  color: var(--forest-green);
+  transition:
+    transform 0.16s var(--ease),
+    background-color 0.16s var(--ease);
+}
+
+.card-action:active .card-action__icon {
+  transform: scale(0.94);
+  background: var(--bg-neutral-active);
+}
+
+@media (hover: hover) {
+  .card-action:hover .card-action__icon {
+    background: var(--bg-neutral-hover);
+  }
 }

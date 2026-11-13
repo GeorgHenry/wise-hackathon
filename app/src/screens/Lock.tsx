@@ -24,12 +24,15 @@ export function Lock({ faceIdPasses, onUnlock }: LockProps) {
   }
 
   return (
-    <div className="lock">
+    // Forest green, the colour of the voice sheet it opens onto.
+    <div className="lock theme-forest">
       <span className="tag">Prototype</span>
       <div className="lock__centre">
-        <FaceId state={state} size={104} />
-        <h1 className="lock__title">Welcome back, {ACCOUNT_HOLDER.firstName}</h1>
-        <p className="muted" role="status">
+        <span className="faceid-stage">
+          <FaceId state={state} size={104} />
+        </span>
+        <h1 className="display lock__title">Welcome back, {ACCOUNT_HOLDER.firstName}</h1>
+        <p className="lock__status" role="status">
           {STATUS[state]}
         </p>
       </div>
