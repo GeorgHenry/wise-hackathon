@@ -31,7 +31,7 @@ document covers everything outside that folder.
 |---|---|---|
 | Platform | Web app, React + Vite + TypeScript, in `app/` | The voice agent is a browser module; a native build would take much longer |
 | Language | English first | User's choice; Estonian only if it later passes a test |
-| Way in | Voice starts by itself after unlock, and a mic button sits on every screen | The persona cannot read a home screen; sighted viewers need one obvious button |
+| Way in | Voice starts by itself after unlock, and a Voice tab sits on every screen | The persona cannot read a home screen; sighted viewers need one obvious button |
 | "Receive" | Hearing that money arrived and from whom | Not payment requests |
 | Recipients | Voice pays saved people only | Never dictate account numbers by voice |
 | Face ID | An on-screen animation, with a demo switch to make it fail | A browser cannot call the real Face ID without extra setup |
@@ -45,7 +45,7 @@ Estonian, adding recipients by voice, payment requests, deployment.
 | carrot–plan step | Screen or part |
 |---|---|
 | (not in the flow) first run | Onboarding: what Wise Voice does, Face ID set-up, microphone |
-| Open Wise Voice | Home with the mic button; voice also starts by itself after unlock |
+| Open Wise Voice | Home with the Voice tab; voice also starts by itself after unlock |
 | Authenticated? / Complete Wise-approved sign-in | Lock screen with Face ID |
 | Voice session starts / What does user want? | Voice sheet: status indicator and captions |
 | Retrieve account balance / Private audio available? | Balance card, or "private audio needed" card |
@@ -214,7 +214,7 @@ hostile to them:
 - Real buttons with names; the voice sheet is a dialog with focus moved into it
   and returned on close.
 - Captions sit in a polite live region, switched off while the reply is also spoken, so a screen reader does not talk over the agent.
-- Touch targets are at least 48 px; the mic button is 64 px.
+- Touch targets are at least 48 px; the Voice tab is a full tab, 60 px tall.
 - Text contrast meets WCAG AA on all three surfaces (checked by calculation for
   the main colour pairs, not with a tool).
 - Motion is reduced when the system asks for it.

@@ -19,7 +19,7 @@
   display: flex;
   flex-direction: column;
   gap: 12px;
-  padding: 8px 20px calc(16px + env(safe-area-inset-bottom));
+  padding: 8px 20px calc(16px + var(--safe-bottom));
   overflow: hidden;
   border-radius: var(--radius-xl) var(--radius-xl) 0 0;
   background: var(--bg-screen);
@@ -868,8 +868,10 @@
   }
 }
 
-/* Short screens: a smaller orb beside its label, and left-aligned words. */
-@media (max-height: 760px) {
+/* Short screens: a smaller orb beside its label, and left-aligned words. A
+   container query on the screen, not the window, so the drawn desktop phone
+   keeps its full-height layout however short the browser is. */
+@container screen (max-height: 760px) {
   .sheet__status {
     display: flex;
     align-items: center;

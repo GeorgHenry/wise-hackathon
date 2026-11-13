@@ -92,7 +92,7 @@
   justify-items: center;
   gap: 10px;
   width: 100%;
-  padding: 10px 24px calc(36px + env(safe-area-inset-bottom));
+  padding: 10px 24px calc(36px + var(--safe-bottom));
   border-radius: var(--radius-xl) var(--radius-xl) 0 0;
   background: var(--bg-elevated);
   color: var(--content-primary);

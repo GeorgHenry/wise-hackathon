@@ -133,12 +133,49 @@
   font-size: 15px;
 }
 
+/* A short window (a laptop with its browser bars): tighter spacing, so the
+   whole panel fits beside the phone without scrolling. */
+@media (max-height: 820px) and (min-width: 881px) {
+  .demo {
+    gap: 14px;
+    padding: 20px 22px;
+  }
+
+  .demo__title {
+    font-size: 20px;
+  }
+
+  .demo__note {
+    margin-top: 6px;
+    font-size: 13px;
+    line-height: 1.45;
+  }
+
+  .choice legend {
+    margin-bottom: 6px;
+  }
+
+  .choice__option span {
+    min-height: 38px;
+    font-size: 14px;
+  }
+
+  .demo__buttons {
+    gap: 6px;
+  }
+
+  .demo__buttons .btn {
+    min-height: 44px;
+    font-size: 15px;
+  }
+}
+
 .demo-toggle {
   display: none;
 }
 
 /* Narrower than a phone frame plus the panel: the panel becomes a drawer. */
-@media (max-width: 860px) {
+@media (max-width: 880px) {
   .demo-toggle {
     position: fixed;
     top: calc(6px + env(safe-area-inset-top));

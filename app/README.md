@@ -15,9 +15,9 @@ npm install
 npm run dev
 ```
 
-Open http://localhost:5173. On a desktop the app sits in a phone frame with the
-demo controls beside it. On a phone the controls are behind the "Demo" button
-at the top.
+Open http://localhost:5173. On a desktop the app sits in an iPhone 17 Pro frame,
+scaled to fit the window, with the demo controls beside it. On a phone the
+controls are behind the "Demo" button at the top.
 
 Wise Voice is the **live ElevenLabs agent** whenever its server is running:
 
@@ -54,7 +54,7 @@ blocks it.
 6. Switch Face ID to Fails and try again: nothing is sent.
 7. Press "Money arrives from Kadri": the agent says so and the balance rises.
 
-The mic button in the tab bar opens Wise Voice from any tab. "Reset the demo"
+The Voice tab in the tab bar opens Wise Voice from any tab. "Reset the demo"
 puts the account back to the start.
 
 ## Checks

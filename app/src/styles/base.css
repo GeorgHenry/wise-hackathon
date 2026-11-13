@@ -72,57 +72,94 @@ ul {
 
 /* ---------- Stage and phone frame ---------- */
 
+/* The room the screens keep free at the bottom: the phone's own safe area on a
+   real phone, and room for the drawn home indicator in the desktop frame. */
+:root {
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+}
+
 .stage {
   min-height: 100dvh;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 56px;
+  gap: 48px;
   padding: 24px;
 }
 
+/* An iPhone 17 Pro at its real size: a 402 × 874 screen with 62 px corners in
+   an 11 px bezel. PhoneFrame scales the whole phone to fit a short window, so
+   these sizes never change and the proportions stay true. */
 .phone {
   position: relative;
   flex: none;
-  width: 414px;
-  height: min(868px, calc(100dvh - 48px));
+  width: 424px;
+  height: 896px;
   padding: 11px;
-  border-radius: 62px;
+  border-radius: 73px;
   background: #0b0c0a;
+  --safe-bottom: 21px;
   box-shadow:
     inset 0 0 0 1.5px #3a3d38,
-    0 0 0 1px rgba(22, 51, 0, 0.35),
+    0 0 0 1.5px #2b2f29,
     0 48px 90px -20px rgba(22, 51, 0, 0.55),
     0 18px 36px -12px rgba(22, 51, 0, 0.35);
 }
 
-/* Side buttons, for a phone that reads as a phone at a glance. */
-.phone::before,
-.phone::after {
-  content: '';
+/* The buttons on its sides: action, volume up and down on the left; the side
+   button and Camera Control on the right. */
+.phone__button {
   position: absolute;
-  width: 4px;
-  border-radius: 2px;
-  background: #0b0c0a;
+  width: 3px;
+  background: #22251f;
 }
 
-.phone::before {
-  top: 170px;
-  left: -4px;
-  height: 64px;
-  box-shadow: 0 84px 0 #0b0c0a;
+.phone__button--action,
+.phone__button--volume-up,
+.phone__button--volume-down {
+  left: -3px;
+  border-radius: 2px 0 0 2px;
 }
 
-.phone::after {
-  top: 210px;
-  right: -4px;
-  height: 96px;
+.phone__button--side,
+.phone__button--camera {
+  right: -3px;
+  border-radius: 0 2px 2px 0;
+}
+
+.phone__button--action {
+  top: 177px;
+  height: 42px;
+}
+
+.phone__button--volume-up {
+  top: 238px;
+  height: 66px;
+}
+
+.phone__button--volume-down {
+  top: 316px;
+  height: 66px;
+}
+
+.phone__button--side {
+  top: 232px;
+  height: 102px;
+}
+
+/* Camera Control sits nearly flush. */
+.phone__button--camera {
+  top: 520px;
+  width: 2px;
+  height: 78px;
+  right: -2px;
+  background: #3a3d38;
 }
 
 .phone__screen {
   position: relative;
   height: 100%;
-  border-radius: 51px;
+  border-radius: 62px;
   overflow: hidden;
   background: var(--bg-screen);
   display: flex;
@@ -131,36 +168,66 @@ ul {
   transition: background-color 0.4s var(--ease);
 }
 
+/* The home indicator: dark on light screens, light on forest ones. */
+.phone__screen::after {
+  content: '';
+  position: absolute;
+  bottom: 8px;
+  left: 50%;
+  z-index: 80;
+  width: 140px;
+  height: 5px;
+  margin-left: -70px;
+  border-radius: 3px;
+  background: rgba(14, 15, 12, 0.88);
+  pointer-events: none;
+  transition: background-color 0.3s var(--ease);
+}
+
+.phone__screen:has(> .app > :is(.lock, .onboarding).theme-forest)::after,
+.phone__screen:has(.sheet):not(:has(.approval))::after {
+  background: rgba(255, 255, 255, 0.86);
+}
+
+/* iOS's status bar: the time and the icons each centred in the space either side of the Dynamic Island. */
 .statusbar {
   position: relative;
   z-index: 40;
   flex: none;
-  height: 50px;
-  padding: 12px 32px 0;
-  display: flex;
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: 1fr 126px 1fr;
   align-items: center;
+  height: 54px;
+  padding-top: 5px;
   color: var(--content-primary);
-  font-size: 16px;
+  font-size: 17px;
   font-weight: 600;
   letter-spacing: -0.01em;
+}
+
+.statusbar__time {
+  justify-self: center;
+  padding-left: 8px;
 }
 
 .statusbar__island {
   position: absolute;
   top: 11px;
   left: 50%;
-  width: 118px;
-  height: 34px;
-  margin-left: -59px;
-  border-radius: 20px;
+  width: 126px;
+  height: 37px;
+  margin-left: -63px;
+  border-radius: 19px;
   background: #000;
 }
 
 .statusbar__icons {
+  grid-column: 3;
+  justify-self: center;
   display: flex;
   align-items: center;
   gap: 6px;
+  padding-right: 8px;
 }
 
 /* A coloured lock or onboarding screen colours the whole phone, status bar
@@ -187,6 +254,8 @@ ul {
   min-height: 0;
   display: flex;
   flex-direction: column;
+  /* The voice sheet's short-screen layout asks this box, not the window. */
+  container: screen / size;
 }
 
 @media (max-width: 540px) {
@@ -217,9 +286,13 @@ ul {
     box-shadow: none;
   }
 
-  .phone::before,
-  .phone::after {
+  .phone__button,
+  .phone__screen::after {
     display: none;
+  }
+
+  .phone {
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
   }
 
   .phone__screen {
@@ -542,4 +615,17 @@ ul {
   flex: 1;
   flex-direction: column;
   min-height: 0;
+}
+
+/* iOS's scroll edge: the list fades out behind the floating tab bar instead of showing below it. */
+.app__main::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 19;
+  height: calc(64px + var(--safe-bottom));
+  background: linear-gradient(to bottom, rgba(255, 255, 255, 0), rgba(255, 255, 255, 0.92) 70%);
+  pointer-events: none;
 }

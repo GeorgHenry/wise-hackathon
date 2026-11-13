@@ -78,7 +78,7 @@
   font-weight: 500;
 }
 
-@media (max-width: 1260px), (max-height: 700px) {
+@media (max-width: 1300px), (max-height: 600px) {
   .stage-intro {
     display: none;
   }
