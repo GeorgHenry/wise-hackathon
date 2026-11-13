@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Wise Voice test page</title>
+  <script type="importmap">{ "imports": { "@elevenlabs/client": "/web/vendor/elevenlabs-client.js" } }</script>
+  <style>
+    :root { --bg: #f7f7f2; --fg: #10140f; --muted: #4c5448; --card: #ffffff; --line: #d6d9d0; --accent: #163300; --accent-bg: #9fe870; --warn: #8a1c1c; }
+    @media (prefers-color-scheme: dark) { :root { --bg: #11140f; --fg: #eef0ea; --muted: #b3b9ad; --card: #1b1f18; --line: #343a2f; --accent: #9fe870; --accent-bg: #2c4d14; --warn: #ff9b9b; } }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--fg); font: 18px/1.5 system-ui, sans-serif; }
+    main { max-width: 720px; margin: 0 auto; padding: 24px 16px 48px; }
+    h1 { font-size: 1.5rem; margin: 0 0 4px; }
+    p.note { color: var(--muted); margin: 0 0 20px; font-size: 0.95rem; }
+    button { font: inherit; padding: 12px 18px; border-radius: 999px; border: 2px solid var(--accent); background: var(--card); color: var(--fg); cursor: pointer; }
+    button.primary { background: var(--accent-bg); font-weight: 600; font-size: 1.15rem; }
+    button:focus-visible, input:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+    .row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin: 12px 0; }
+    .card { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 16px; margin: 14px 0; }
+    #status { font-weight: 600; }
+    #log { list-style: none; padding: 0; margin: 0; max-height: 360px; overflow-y: auto; }
+    #log li { padding: 6px 0; border-bottom: 1px solid var(--line); overflow-wrap: anywhere; }
+    #log .agent { color: var(--accent); }
+    #log .meta { color: var(--muted); font-size: 0.85rem; }
+    #log .error { color: var(--warn); }
+    input[type=text] { font: inherit; flex: 1 1 220px; min-width: 0; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--line); background: var(--bg); color: var(--fg); }
+    dialog { border: 2px solid var(--accent); border-radius: 16px; background: var(--card); color: var(--fg); max-width: 420px; }
+  </style>
+</head>
+<body>
+<main>
+  <h1>Wise Voice: test page</h1>
+  <p class="note">Talks to the real ElevenLabs agent with a pretend bank (Malle's demo data). A voice session uses ElevenLabs credits for every minute it is open.</p>
+
+  <div class="row">
+    <button id="start" class="primary">Start talking</button>
+    <span id="status" role="status" aria-live="polite">Not connected</span>
+  </div>
+
+  <div class="card">
+    <div class="row">
+      <label><input type="checkbox" id="speaker"> Phone on loudspeaker</label>
+      <button id="incoming">Pretend money arrives</button>
+    </div>
+    <div id="balances" aria-live="polite"></div>
+  </div>
+
+  <form id="typed" class="row">
+    <label for="text" class="note" style="margin:0">Or type:</label>
+    <input id="text" type="text" autocomplete="off" placeholder="What's my balance?">
+    <button type="submit">Send</button>
+  </form>
+
+  <div class="card"><ul id="log" aria-live="polite" aria-label="Conversation"></ul></div>
+
+  <dialog id="faceid" aria-labelledby="faceid-title">
+    <h2 id="faceid-title" style="margin-top:0">Approve this payment?</h2>
+    <p id="faceid-text"></p>
+    <div class="row"><button id="approve" class="primary">Approve (Face ID)</button><button id="decline">Decline</button></div>
+  </dialog>
+</main>
+<script type="module">
+  import { startVoice } from '/web/voice.js';
+  import { createMockBank } from '/web/mock-bank.js';
+
+  const $ = (id) => document.getElementById(id);
+  const log = (text, cls = 'meta') => {
+    const li = document.createElement('li');
+    li.className = cls;
+    li.textContent = text;
+    $('log').append(li);
+    li.scrollIntoView({ block: 'nearest' });
+  };
+
+  // Stands in for the app's Face ID step: the payment waits until a button is pressed.
+  const approve = (transfer) => new Promise((resolve) => {
+    $('faceid-text').textContent = `${transfer.targetAmount} ${transfer.targetCurrency} to ${transfer.recipientName}; you pay ${transfer.sourceAmount} ${transfer.sourceCurrency}.`;
+    const done = (ok) => { $('faceid').close(); resolve(ok); };
+    $('approve').onclick = () => done(true);
+    $('decline').onclick = () => done(false);
+    $('faceid').showModal();
+  });
+
+  const bank = createMockBank({ approve, approvalDelayMs: 300 });
+  const showBalances = async () => {
+    const list = await bank.getBalances();
+    $('balances').textContent = 'Balances: ' + list.map((b) => `${b.amount.toFixed(2)} ${b.currency}`).join(', ');
+  };
+  bank.subscribe(showBalances);
+  showBalances();
+  $('speaker').onchange = (e) => bank.setAudioPrivacy(e.target.checked ? 'speaker' : 'private');
+  $('incoming').onclick = () => bank.simulateIncoming({ from: 'Kadri', amount: 40, currency: 'GBP' });
+
+  let session = null;
+  const onEvent = (e) => {
+    if (e.type === 'status') $('status').textContent = e.status === 'connected' ? 'Connected: speak now' : e.status;
+    if (e.type === 'mode') $('status').textContent = e.mode === 'speaking' ? 'Wise Voice is speaking' : 'Listening';
+    if (e.type === 'transcript') log(`${e.role === 'user' ? 'You' : 'Wise Voice'}: ${e.text}`, e.role === 'user' ? '' : 'agent');
+    if (e.type === 'tool' && e.phase === 'start') log(`(${e.name})`);
+    if (e.type === 'confirm_blocked') log('(send blocked: no clear yes heard yet)');
+    if (e.type === 'error') log(`Error: ${e.message}`, 'error');
+    if (e.type === 'status' && e.status === 'disconnected') { session = null; $('start').textContent = 'Start talking'; }
+  };
+
+  $('start').onclick = async () => {
+    if (session) { await session.stop(); return; }
+    $('start').disabled = true;
+    try {
+      session = await startVoice({ bank, onEvent, tokenUrl: '/voice-api/token' });
+      $('start').textContent = 'Stop';
+    } catch (err) {
+      log(`Could not start: ${err.message}`, 'error');
+    } finally {
+      $('start').disabled = false;
+    }
+  };
+  $('typed').onsubmit = (e) => {
+    e.preventDefault();
+    if (!session) { log('Start a session first.', 'error'); return; }
+    session.sendText($('text').value);
+    $('text').value = '';
+  };
+</script>
+</body>
+</html>

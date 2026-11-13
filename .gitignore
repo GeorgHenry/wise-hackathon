@@ -1,0 +1,7 @@
+# Secrets (ElevenLabs key, agent id): never commit
+.env
+.env.*
+!.env.example
+
+node_modules/
+.DS_Store
