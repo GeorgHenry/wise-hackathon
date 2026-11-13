@@ -6,8 +6,8 @@
 //    said or typed since the readback is a plain yes: no change, condition,
 //    question, number or delay. The model cannot supply that yes itself. A new
 //    quote, a new readback, any other answer, or five minutes disarms it.
-//  - Only saved recipients can be paid, up to the voice limit per transfer and in
-//    total per call (per currency).
+//  - Only saved recipients, or phone contacts who use Wise, can be paid, up to the
+//    voice limit per transfer and in total per call (per currency).
 //  - While sound goes to the loudspeaker, balances, payments and payment details
 //    are withheld from the model until the user has just agreed to hear them.
 //  - Names from the bank reach the model as short, cleaned text; sender names
@@ -111,7 +111,9 @@ export function maskDetail(detail) {
 const MONEY = {
   EUR: { one: 'euro', many: 'euros', minor: ['cent', 'cents'], minorAlone: ['euro cent', 'euro cents'] },
   GBP: { one: 'pound', many: 'pounds', minor: ['penny', 'pence'], minorAlone: ['penny', 'pence'] },
+  USD: { one: 'dollar', many: 'dollars', minor: ['cent', 'cents'], minorAlone: ['US cent', 'US cents'] },
 };
+export const CURRENCIES = Object.keys(MONEY);
 
 export const round2 = (n) => Math.round(Number(n) * 100) / 100;
 
@@ -198,7 +200,10 @@ function soundsLike(query, recipient) {
 
 const SAY_FOR_ERROR = {
   unknown_recipient:
-    'That person is not saved in Wise. By voice, money can only go to saved recipients. Nothing was sent.',
+    'That person is not a saved recipient or a phone contact who uses Wise, so money cannot go to them by voice. Nothing was sent.',
+  not_on_wise:
+    'That contact does not use Wise, so money cannot go to them by voice. Their bank details can be added in the app. Nothing was sent.',
+  unsupported_currency: 'That currency is not possible here. Ask for euros, pounds or dollars. Nothing was sent.',
   insufficient_funds:
     'There is not enough money in the balance for this. Nothing was sent. Offer a smaller amount.',
   quote_expired: 'The price has expired. Nothing was sent. Get a new quote, read it back and ask again.',
@@ -302,10 +307,28 @@ export function createToolRuntime({
     }
   }
 
+  /** Phone contacts, shaped like recipients. Empty when the app's bank has no contacts. */
+  async function contacts(query) {
+    if (typeof bank.findContacts !== 'function') return [];
+    const found = await bank.findContacts(query);
+    return found.map((c) => ({ id: c.id, name: c.name, currency: null, detail: c.phone, onWise: Boolean(c.onWise), source: 'contact' }));
+  }
+
   async function findRecipientById(id) {
     if (state.recipients.has(id)) return state.recipients.get(id);
-    const all = await bank.listRecipients();
-    return all.find((r) => r.id === id) ?? null;
+    const saved = (await bank.listRecipients()).find((r) => r.id === id);
+    const found = saved ?? (await contacts('')).find((c) => c.id === id) ?? null;
+    if (found?.source === 'contact') found.paidBefore = await paidBefore(found.name);
+    if (found) state.recipients.set(found.id, found);
+    return found;
+  }
+
+  async function paidBefore(name) {
+    try {
+      return (await bank.listTransactions({ direction: 'out', counterparty: name, limit: 1 })).length > 0;
+    } catch {
+      return false;
+    }
   }
 
   function describeQuote(q) {
@@ -380,41 +403,72 @@ export function createToolRuntime({
     async find_recipient({ name } = {}) {
       const query = cleanText(name, 40);
       if (!query) return { found: false, say: 'Ask who the money is for.' };
+      // Saved recipients first, then the phone's contacts; exact matches before names that sound alike.
       let matches = await bank.listRecipients(query);
+      if (!matches.length) matches = await contacts(query);
       let soundsClose = false;
       if (!matches.length) {
         const everyone = await bank.listRecipients();
+        const book = await contacts('');
         matches = everyone.filter((r) => soundsLike(query, r));
+        if (!matches.length) matches = book.filter((c) => soundsLike(query, c));
         soundsClose = matches.length > 0;
         if (!soundsClose) {
           return {
             found: false,
             saved_people: everyone.slice(0, 6).map((r) => safeName(r.name)),
             say:
-              `No saved person matches "${safeName(query)}". By voice, money can only go to people already saved in Wise. ` +
-              'Say who is saved, or suggest adding a new person in the app with someone the user trusts.',
+              `Nobody saved in Wise or in the phone's contacts matches "${safeName(query)}". ` +
+              'Say who is saved, or suggest adding the person in the app with someone the user trusts.',
           };
         }
       }
-      for (const r of matches) state.recipients.set(r.id, r);
+      const payable = matches.filter((r) => r.source !== 'contact' || r.onWise);
+      if (!payable.length) {
+        return {
+          found: false,
+          say:
+            `${safeName(matches[0].name)} is in the phone's contacts but does not use Wise, so money cannot go to them by voice. ` +
+            'Their bank details can be added in the app, perhaps with someone the user trusts.',
+        };
+      }
+      for (const r of payable) {
+        if (r.source === 'contact') r.paidBefore = await paidBefore(r.name);
+        state.recipients.set(r.id, r);
+      }
+      const isContact = payable[0].source === 'contact';
       return {
         found: true,
-        matches: matches.slice(0, 5).map((r) => ({
-          recipient_id: r.id,
-          name: safeName(r.name),
-          ...(r.nickname ? { nickname: yourNickname(r.nickname) } : {}),
-          currency: r.currency,
-          account: maskDetail(r.detail),
-          verified: Boolean(r.verified),
-        })),
+        matches: payable.slice(0, 5).map((r) =>
+          r.source === 'contact'
+            ? {
+                recipient_id: r.id,
+                name: safeName(r.name),
+                kind: 'phone contact who uses Wise',
+                account: 'Wise account',
+                phone: maskDetail(r.detail),
+                paid_before: r.paidBefore,
+              }
+            : {
+                recipient_id: r.id,
+                name: safeName(r.name),
+                kind: 'saved recipient',
+                ...(r.nickname ? { nickname: yourNickname(r.nickname) } : {}),
+                currency: r.currency,
+                account: maskDetail(r.detail),
+                verified: Boolean(r.verified),
+              },
+        ),
         ...(soundsClose
           ? {
               confirm_name: true,
-              say: `Nobody is saved under exactly that name, but it sounds close. Ask "Did you mean ${safeName(matches[0].name)}?" and go on only after a yes.`,
+              say: `Nobody is saved under exactly that name, but it sounds close. Ask "Did you mean ${safeName(payable[0].name)}?" and go on only after a yes.`,
             }
-          : matches.length > 1
-            ? { say: 'More than one person matches. Ask which one, by name.' }
-            : {}),
+          : payable.length > 1
+            ? { say: 'More than one person matches. Ask which one, by full name.' }
+            : isContact
+              ? { say: 'A phone contact who uses Wise: the money goes straight to their Wise account, in the currency the user names. Go on to get_quote.' }
+              : {}),
       };
     },
 
@@ -430,16 +484,28 @@ export function createToolRuntime({
       if (Math.abs(value * 100 - Math.round(value * 100)) > 1e-6) {
         return { ok: false, error: 'invalid_amount', say: 'Amounts can have at most two decimals. Ask again.' };
       }
-      if (currency !== 'EUR' && currency !== 'GBP') {
-        return { ok: false, error: 'unsupported_currency', say: 'Only euros and pounds are possible. Ask which one.' };
+      if (!CURRENCIES.includes(currency)) return failure({ code: 'unsupported_currency' });
+      if (recipient.source === 'contact' && !recipient.onWise) return failure({ code: 'not_on_wise' });
+      // Said in the currency that arrives (a Wise account takes any), it is what they receive.
+      // Said in one of the user's own balance currencies, it is what the user pays.
+      let amountIs = 'target';
+      if (recipient.currency && currency !== recipient.currency) {
+        const balanceCurrencies = (await bank.getBalances()).map((b) => b.currency);
+        if (!balanceCurrencies.includes(currency)) {
+          return {
+            ok: false,
+            error: 'currency_not_possible',
+            say: `${safeName(recipient.name)}'s account takes ${MONEY[recipient.currency]?.many ?? recipient.currency}. Ask how much in ${MONEY[recipient.currency]?.many ?? recipient.currency}. Nothing was sent.`,
+          };
+        }
+        amountIs = 'source';
       }
       if (value > voiceLimit) return overLimit(`By voice you can send up to ${speakMoney(voiceLimit, currency)} at a time.`);
       const quote = await bank.getQuote({
         recipientId: recipient.id,
         amount: round2(value),
         currency,
-        // Said in the recipient's currency: that is what arrives. Otherwise it is what the user pays.
-        amountIs: currency === recipient.currency ? 'target' : 'source',
+        amountIs,
       });
       if (Number(quote.sourceAmount) > voiceLimit) {
         return overLimit(
@@ -490,8 +556,14 @@ export function createToolRuntime({
       const sameName = everyone.filter((r) => safeName(r.name).toLowerCase() === d.recipient.toLowerCase());
       const detail = (state.recipients.get(transfer.recipientId) ?? everyone.find((r) => r.id === transfer.recipientId))?.detail;
       const who = sameName.length > 1 && maskDetail(detail) ? `${d.recipient}, account ${maskDetail(detail)}` : d.recipient;
+      const recipient = state.recipients.get(transfer.recipientId);
+      const toWhom =
+        recipient?.source === 'contact'
+          ? `${who}'s Wise account. ${d.recipient} is in your phone contacts` +
+            (recipient.paidBefore ? '' : ", and you haven't paid them before")
+          : who;
       const readback =
-        `You are sending ${d.they_receive} to ${who}. ` +
+        `You are sending ${d.they_receive} to ${toWhom}. ` +
         (d.fee === 'no fee' ? 'There is no fee. ' : `The fee is ${d.fee}. `) +
         `You pay ${d.you_pay} in total. It should arrive ${d.arrives}.`;
       emit({ type: 'pending_transfer', transfer });

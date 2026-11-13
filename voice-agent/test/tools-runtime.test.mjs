@@ -43,6 +43,7 @@ async function prepareTo(ctx, { name = 'Kadri', amount = 50, currency = 'GBP' } 
   return { found, quote, prepared };
 }
 
+const round2 = (n) => Math.round(n * 100) / 100;
 const balance = async (bank, currency = 'EUR') => (await bank.getBalances()).find((b) => b.currency === currency).amount;
 const tick = () => new Promise((r) => setTimeout(r, 0));
 
@@ -72,6 +73,8 @@ test('speakMoney says amounts in words a listener expects', () => {
   assert.equal(speakMoney(0.01, 'GBP'), '1 penny');
   assert.equal(speakMoney(0.65, 'EUR'), '65 euro cents');
   assert.equal(speakMoney(1234.5, 'EUR'), '1,234 euros and 50 cents');
+  assert.equal(speakMoney(20, 'USD'), '20 dollars');
+  assert.equal(speakMoney(0.5, 'USD'), '50 US cents');
 });
 
 test('speakDate uses the local calendar day, and the year only for other years', () => {
@@ -166,11 +169,16 @@ test('get_quote checks amount, currency, recipient and limits, and names the cur
   const ctx = setup();
   const quote = await ctx.tools.get_quote({ recipient_id: 'rcp_kadri', amount: 50, currency: 'GBP' });
   assert.equal(quote.they_receive, '50 pounds');
-  assert.equal(quote.exchange_rate, '1 euro is about 0.86 pounds');
+  assert.equal(quote.you_pay, '50 pounds', 'paid from the pound balance');
+  assert.equal(quote.fee, 'no fee');
+  const converted = await ctx.tools.get_quote({ recipient_id: 'rcp_kadri', amount: 400, currency: 'GBP' });
+  assert.equal(converted.exchange_rate, '1 euro is about 0.86 pounds', 'more than the pound balance: from euros');
+  assert.match(converted.you_pay, /euros/);
+  assert.equal((await ctx.tools.get_quote({ recipient_id: 'rcp_kadri', amount: 20, currency: 'USD' })).error, 'currency_not_possible');
   for (const amount of [-5, 0, 'abc', 12.345, Number.NaN]) {
     assert.equal((await ctx.tools.get_quote({ recipient_id: 'rcp_kadri', amount, currency: 'GBP' })).error, 'invalid_amount', String(amount));
   }
-  assert.equal((await ctx.tools.get_quote({ recipient_id: 'rcp_kadri', amount: 10, currency: 'USD' })).error, 'unsupported_currency');
+  assert.equal((await ctx.tools.get_quote({ recipient_id: 'rcp_kadri', amount: 10, currency: 'JPY' })).error, 'unsupported_currency');
   assert.equal((await ctx.tools.get_quote({ recipient_id: 'rcp_kadri', amount: 5000, currency: 'GBP' })).error, 'over_voice_limit');
   assert.equal((await ctx.tools.get_quote({ recipient_id: 'rcp_nobody', amount: 10, currency: 'GBP' })).error, 'unknown_recipient');
   const pricey = await ctx.tools.get_quote({ recipient_id: 'rcp_kadri', amount: 950, currency: 'GBP' });
@@ -209,7 +217,7 @@ test('confirm_transfer refuses without a plain yes after the readback, and nothi
   const ctx = setup();
   const before = await balance(ctx.bank);
   const { prepared } = await prepareTo(ctx);
-  assert.match(prepared.readback, /^You are sending 50 pounds to Kadri\. The fee is 65 euro cents\. You pay .+ in total\. It should arrive today\.$/);
+  assert.equal(prepared.readback, 'You are sending 50 pounds to Kadri. There is no fee. You pay 50 pounds in total. It should arrive today.');
   assert.equal((await ctx.tools.confirm_transfer({ transfer_id: prepared.transfer_id })).error, 'needs_clear_yes', 'same breath');
   for (const answer of ['No.', 'Yes, but make it 40.', 'Do it tomorrow.', 'Okay, let me think about it.']) {
     ctx.say(answer);
@@ -222,7 +230,7 @@ test('confirm_transfer refuses without a plain yes after the readback, and nothi
 
 test('a changed amount disarms the waiting transfer (the old one can never be sent)', async () => {
   const ctx = setup();
-  const before = await balance(ctx.bank);
+  const beforeGbp = await balance(ctx.bank, 'GBP');
   const { prepared } = await prepareTo(ctx, { amount: 50 });
   ctx.say('Yes, make it 40 pounds.');
   const newQuote = await ctx.tools.get_quote({ recipient_id: 'rcp_kadri', amount: 40, currency: 'GBP' });
@@ -234,7 +242,7 @@ test('a changed amount disarms the waiting transfer (the old one can never be se
   assert.equal((await ctx.tools.confirm_transfer({ transfer_id: second.transfer_id })).status, 'sent');
   const out = await ctx.bank.listTransactions({ direction: 'out' });
   assert.equal(out[0].amount, 40);
-  assert.ok(before - (await balance(ctx.bank)) < 50, 'only the 40-pound transfer was paid');
+  assert.equal(round2(beforeGbp - (await balance(ctx.bank, 'GBP'))), 40, 'only the 40-pound transfer was paid');
 });
 
 test('a question between the readback and the yes means reading back again', async () => {
@@ -268,7 +276,7 @@ test('a long answer that starts with yes is not a yes', async () => {
 
 test('confirm_transfer sends once after a plain yes, even if called again or twice at once', async () => {
   const ctx = setup();
-  const before = await balance(ctx.bank);
+  const before = await balance(ctx.bank, 'GBP');
   const { prepared } = await prepareTo(ctx);
   ctx.say('Yes, send it.');
   const [a, b] = await Promise.all([
@@ -281,7 +289,7 @@ test('confirm_transfer sends once after a plain yes, even if called again or twi
   assert.match(again.note, /already finished/);
   const out = await ctx.bank.listTransactions({ direction: 'out' });
   assert.equal(out.filter((t) => t.counterparty === 'Kadri' && t.amount === 50).length, 1);
-  assert.ok(before - (await balance(ctx.bank)) > 50);
+  assert.equal(round2(before - (await balance(ctx.bank, 'GBP'))), 50, 'paid once');
 });
 
 test('confirm_transfer rejects ids that were never prepared or were replaced', async () => {
@@ -378,4 +386,53 @@ test('the same words echoed back within seconds count as one user turn', () => {
   ctx.say('Yes.');
   ctx.say('Yes.');
   assert.equal(ctx.runtime.state.userTurns.length, 1);
+});
+
+test('"Transfer 20 dollars to Martin": a phone contact on Wise, read back, yes, then Face ID', async () => {
+  const ctx = setup();
+  const before = await balance(ctx.bank);
+  ctx.say('Transfer 20 dollars to Martin.');
+  const found = await ctx.tools.find_recipient({ name: 'Martin' });
+  assert.equal(found.found, true);
+  assert.equal(found.matches[0].kind, 'phone contact who uses Wise');
+  assert.equal(found.matches[0].paid_before, false);
+  const quote = await ctx.tools.get_quote({ recipient_id: found.matches[0].recipient_id, amount: 20, currency: 'USD' });
+  assert.equal(quote.they_receive, '20 dollars');
+  assert.match(quote.you_pay, /^18 euros and \d+ cents$/);
+  assert.equal(quote.exchange_rate, '1 euro is about 1.08 dollars');
+  assert.equal(quote.arrives, 'in seconds');
+  const prepared = await ctx.tools.prepare_transfer({ quote_id: quote.quote_id });
+  assert.match(
+    prepared.readback,
+    /^You are sending 20 dollars to Martin Saar's Wise account\. Martin Saar is in your phone contacts, and you haven't paid them before\. The fee is .+ You pay 18 euros and \d+ cents in total\. It should arrive in seconds\.$/,
+  );
+  assert.equal((await ctx.tools.confirm_transfer({ transfer_id: prepared.transfer_id })).error, 'needs_clear_yes');
+  ctx.say('Yes.');
+  assert.equal((await ctx.tools.confirm_transfer({ transfer_id: prepared.transfer_id })).status, 'sent');
+  const out = await ctx.bank.listTransactions({ direction: 'out' });
+  assert.deepEqual([out[0].counterparty, out[0].amount, out[0].currency], ['Martin Saar', 20, 'USD']);
+  assert.ok(before - (await balance(ctx.bank)) > 18);
+
+  // The next time, Martin has been paid before and the readback says less.
+  ctx.say('Send Martin another 5 dollars');
+  const again = await ctx.tools.find_recipient({ name: 'Martin' });
+  assert.equal(again.matches[0].paid_before, true);
+  const q2 = await ctx.tools.get_quote({ recipient_id: 'ct_martin', amount: 5, currency: 'USD' });
+  const p2 = await ctx.tools.prepare_transfer({ quote_id: q2.quote_id });
+  assert.equal(p2.readback.includes("haven't paid"), false);
+});
+
+test('contacts: one without Wise cannot be paid; saved people win over contacts; no contacts in the bank is fine', async () => {
+  const ctx = setup();
+  const mari = await ctx.tools.find_recipient({ name: 'Mari' });
+  assert.equal(mari.found, false);
+  assert.match(mari.say, /does not use Wise/);
+  assert.equal((await ctx.tools.get_quote({ recipient_id: 'ct_mari', amount: 5, currency: 'EUR' })).error, 'not_on_wise');
+  assert.equal((await ctx.tools.find_recipient({ name: 'Kadri' })).matches[0].kind, 'saved recipient');
+  const martyn = await ctx.tools.find_recipient({ name: 'Martyn' });
+  assert.equal(martyn.confirm_name, true, 'a contact name that sounds alike is offered, not paid');
+
+  const noContacts = setup({ bank: createMockBank({ withContacts: false }) });
+  const r = await noContacts.tools.find_recipient({ name: 'Martin' });
+  assert.equal(r.found, false);
 });

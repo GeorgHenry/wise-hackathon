@@ -41,8 +41,9 @@ export const CLIENT_TOOLS = [
   {
     name: 'find_recipient',
     description:
-      'Find a person the user has already saved in Wise, by name or nickname (for example "Kadri" or "my daughter"). ' +
-      'Always call it before get_quote. By voice, money can only go to saved recipients.',
+      'Find who the money is for, by name or nickname (for example "Martin", "Kadri" or "my daughter"). ' +
+      'It looks in the people saved in Wise and in the phone\'s contacts who use Wise. ' +
+      'Always call it before get_quote. By voice, money can only go to those two kinds of people.',
     parameters: {
       type: 'object',
       properties: { name: text('The name or nickname the user said.') },
@@ -58,7 +59,9 @@ export const CLIENT_TOOLS = [
       properties: {
         recipient_id: text('The recipient_id from find_recipient.'),
         amount: { type: 'number', description: 'The amount the user said, as a number, for example 50 or 12.5.' },
-        currency: text('Currency of that amount: EUR for euros, GBP for pounds.', { enum: ['EUR', 'GBP'] }),
+        currency: text('Currency of that amount: EUR for euros, GBP for pounds, USD for dollars.', {
+          enum: ['EUR', 'GBP', 'USD'],
+        }),
         read_aloud_ok: READ_ALOUD_OK,
       },
       required: ['recipient_id', 'amount', 'currency'],

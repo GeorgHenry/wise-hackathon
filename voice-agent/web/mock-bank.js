@@ -3,7 +3,7 @@
 // scripts/live-check.mjs. All names, balances, rates and fees are invented for
 // the demo; they are not Wise's prices.
 
-const RATE_EUR_GBP = 0.8642; // invented
+const RATES_FROM_EUR = { EUR: 1, GBP: 0.8642, USD: 1.0835 }; // invented
 const FEE_FIXED_EUR = 0.39; // invented
 const FEE_PERCENT = 0.0045; // invented
 const QUOTE_LIFETIME_MS = 15 * 60 * 1000;
@@ -32,14 +32,20 @@ const dayOffset = (today, days) => {
  * @param {number} [options.approvalDelayMs]  Pause before approve() is asked, like a real Face ID prompt.
  * @param {Date} [options.today]
  * @param {object[]} [options.extraRecipients]  More saved people, e.g. a second Kadri for tests.
+ * @param {boolean} [options.withContacts]  false: behave like a bank without findContacts.
  */
-export function createMockBank({ audio = 'private', approve = () => true, approvalDelayMs = 0, today = new Date(), extraRecipients = [] } = {}) {
+export function createMockBank({ audio = 'private', approve = () => true, approvalDelayMs = 0, today = new Date(), extraRecipients = [], withContacts = true } = {}) {
   const balances = { EUR: 1840.25, GBP: 312.6 };
   const recipients = [
     { id: 'rcp_kadri', name: 'Kadri', nickname: 'my daughter', currency: 'GBP', detail: 'UK account ending 4417', verified: true },
     { id: 'rcp_oskar', name: 'Oskar', nickname: 'my grandson', currency: 'GBP', detail: 'UK account ending 9023', verified: true },
     { id: 'rcp_toivo', name: 'Toivo', nickname: 'my husband', currency: 'EUR', detail: 'EE account ending 5512', verified: true },
     ...extraRecipients,
+  ];
+  // People in the phone's contacts. Those on Wise can be paid straight to their Wise account.
+  const contacts = [
+    { id: 'ct_martin', name: 'Martin Saar', onWise: true, phone: '+372 5555 4410' },
+    { id: 'ct_mari', name: 'Mari Lepp', onWise: false, phone: '+372 5555 1187' },
   ];
   const transactions = [
     { id: 'tx_3', direction: 'in', counterparty: 'Pension payment', amount: 742.1, currency: 'EUR', date: dayOffset(today, 1), status: 'completed' },
@@ -78,6 +84,15 @@ export function createMockBank({ audio = 'private', approve = () => true, approv
       return recipients.filter((r) => !q || matches(r, q)).map((r) => ({ ...r }));
     },
 
+    ...(withContacts
+      ? {
+          async findContacts(query) {
+            const q = String(query ?? '').trim();
+            return contacts.filter((c) => !q || matches(c, q)).map((c) => ({ ...c }));
+          },
+        }
+      : {}),
+
     async listTransactions({ direction, counterparty, limit = 10 } = {}) {
       return transactions
         .filter((t) => !direction || t.direction === direction)
@@ -87,11 +102,18 @@ export function createMockBank({ audio = 'private', approve = () => true, approv
     },
 
     async getQuote({ recipientId, amount, currency, amountIs }) {
-      const recipient = recipients.find((r) => r.id === recipientId);
-      if (!recipient) throw bankError('unknown_recipient', 'No saved recipient with that id');
-      const targetCurrency = recipient.currency;
-      const sourceCurrency = amountIs === 'source' ? currency : 'EUR';
-      const rate = sourceCurrency === targetCurrency ? 1 : sourceCurrency === 'EUR' ? RATE_EUR_GBP : 1 / RATE_EUR_GBP;
+      const saved = recipients.find((r) => r.id === recipientId);
+      const contact = saved ? null : contacts.find((c) => c.id === recipientId);
+      if (!saved && !contact) throw bankError('unknown_recipient', 'No saved recipient or contact with that id');
+      if (contact && !contact.onWise) throw bankError('not_on_wise', 'This contact does not use Wise');
+      if (!RATES_FROM_EUR[currency]) throw bankError('unsupported_currency', 'Currency not supported');
+      const recipient = saved ?? contact;
+      // A Wise account takes the currency the user names; a bank account has its own.
+      const targetCurrency = saved ? saved.currency : currency;
+      // Paid from the balance in that currency when it covers the amount, otherwise converted from euros.
+      const sourceCurrency =
+        amountIs === 'source' ? currency : (balances[targetCurrency] ?? 0) >= amount ? targetCurrency : 'EUR';
+      const rate = RATES_FROM_EUR[targetCurrency] / RATES_FROM_EUR[sourceCurrency];
       const fee = sourceCurrency === targetCurrency ? 0 : round2(FEE_FIXED_EUR + FEE_PERCENT * (amountIs === 'source' ? amount : amount / rate));
       let sourceAmount;
       let targetAmount;
@@ -114,7 +136,7 @@ export function createMockBank({ audio = 'private', approve = () => true, approv
         rate: round2(rate * 10000) / 10000,
         fee,
         feeCurrency: sourceCurrency,
-        arrival: 'today',
+        arrival: contact ? 'in seconds' : 'today',
         expiresAt: new Date(Date.now() + QUOTE_LIFETIME_MS).toISOString(),
       };
       quotes.set(quote.id, quote);

@@ -22,6 +22,7 @@ npm run provision                    # creates or updates the agent and its tool
 npm test                             # 40 offline tests (tools, browser module, server), no credits
 npm run demo                         # test page at http://localhost:8787 (a voice session uses credits)
 npm run live-check                   # ONE text-only conversation with the real agent (LLM tokens only)
+npm run live-check -- --scenario scripts/scenarios/send-to-contact.json   # "Transfer 20 dollars to Martin"
 ```
 
 `npm run server` starts only the token server (the React app proxies `/voice-api` to it).
@@ -70,12 +71,16 @@ and a proxy for `/voice-api`. The bare import
 ### Bank contract (owned by the app, `app/src/bank/`)
 
 All methods are async and return plain JSON; errors reject with an `Error` whose `.code` is
-`unknown_recipient`, `insufficient_funds`, `quote_expired` or `not_found`.
+`unknown_recipient`, `not_on_wise`, `unsupported_currency`, `insufficient_funds`, `quote_expired` or `not_found`.
 
 - `getBalances()` -> `[{ currency: 'EUR'|'GBP', amount }]`
 - `listRecipients(query?)` -> `[{ id, name, nickname?, currency, detail, verified }]`, saved people only
+- `findContacts(query?)` -> `[{ id, name, onWise, phone? }]`: the phone's contacts, matching every word of the
+  query against the name; empty query returns all. Optional: without it, voice pays saved people only.
+  A contact with `onWise: true` can be paid by its `id` straight to their Wise account, in the currency
+  the user names (`targetCurrency` = that currency); one without Wise rejects with `not_on_wise`.
 - `listTransactions({ direction?, counterparty?, limit? })` -> `[{ id, direction, counterparty, amount, currency, date, status }]`
-- `getQuote({ recipientId, amount, currency, amountIs: 'target'|'source' })` -> `{ id, recipientId, recipientName, sourceAmount, sourceCurrency, targetAmount, targetCurrency, rate, fee, feeCurrency, arrival, expiresAt }`
+- `getQuote({ recipientId, amount, currency: 'EUR'|'GBP'|'USD', amountIs: 'target'|'source' })` -> `{ id, recipientId, recipientName, sourceAmount, sourceCurrency, targetAmount, targetCurrency, rate, fee, feeCurrency, arrival, expiresAt }`
 - `prepareTransfer(quoteId)` -> `{ transferId, ...quote }` (nothing moves)
 - `confirmTransfer(transferId)` -> `{ status: 'sent', transaction, balances }` or `{ status: 'declined'|'cancelled'|'failed', reason }`; resolves after Face ID; idempotent
 - `cancelTransfer(transferId)` -> `{ status: 'cancelled' }`
@@ -95,9 +100,11 @@ All methods are async and return plain JSON; errors reject with an `Error` whose
 - **Sent once, and honest afterwards.** Repeat or parallel confirms never send twice. Cancelling a
   transfer that already went says so ("already sent"), never "nothing was sent". An unknown confirm
   error is reported as unknown, and the agent checks recent payments.
-- **Saved recipients only, up to 1,000 per transfer and 1,000 per call** in each currency (both what
-  arrives and what the user pays). Names that sound alike ("Oscar" for Oskar) are offered as
-  "Did you mean ...?", never paid directly.
+- **Saved recipients, or phone contacts who use Wise, up to 1,000 per transfer and 1,000 per call** in
+  each currency (both what arrives and what the user pays). "Transfer 20 dollars to Martin" is enough;
+  for a contact the readback says "is in your phone contacts, and you haven't paid them before" when
+  that is true. A contact without Wise cannot be paid by voice. Names that sound alike ("Oscar" for
+  Oskar) are offered as "Did you mean ...?", never paid directly.
 - **Loudspeaker privacy.** While `getAudioPrivacy()` is `speaker`, balances, payments, quotes and the
   readback are withheld from the agent until the user agrees out loud. Agreement lasts 3 minutes and
   resets when the sound output changes (send a `changed` event when the toggle moves).

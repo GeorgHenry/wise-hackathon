@@ -1,0 +1,5 @@
+{
+  "audio": "private",
+  "expect_sent": 1,
+  "turns": ["Transfer 20 dollars to Martin.", "Yes.", "That is all, goodbye."]
+}
