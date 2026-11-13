@@ -17,6 +17,7 @@ import { cleanText, createToolRuntime, describeSender } from './tools-runtime.js
  * @param {object} [options.bank]  The app's bank object (README: bank contract). Defaults to the mock bank.
  * @param {(event: object) => void} [options.onEvent]  UI events, see README.
  * @param {string} [options.tokenUrl]  Defaults to '/voice-api/token'.
+ * @param {Record<string,string>} [options.tokenHeaders]  Extra headers for the token request (e.g. a demo passcode).
  * @param {string} [options.language]  'en' (default). Other languages only once they pass a test.
  * @param {string} [options.userName]  Used in the greeting.
  * @param {'webrtc'|'websocket'} [options.connectionType]
@@ -27,6 +28,7 @@ export async function startVoice(options = {}) {
   const {
     onEvent = () => {},
     tokenUrl = '/voice-api/token',
+    tokenHeaders = {},
     language = 'en',
     userName = 'Maria',
     connectionType = 'webrtc',
@@ -61,7 +63,7 @@ export async function startVoice(options = {}) {
   };
 
   try {
-    const auth = await fetchSessionAuth(tokenUrl, connectionType);
+    const auth = await fetchSessionAuth(tokenUrl, connectionType, tokenHeaders);
     conversation = await Conversation.startSession({
       ...(connectionType === 'websocket'
         ? { signedUrl: auth.signed_url, connectionType: 'websocket' }
@@ -172,13 +174,13 @@ export async function startVoice(options = {}) {
   };
 }
 
-async function fetchSessionAuth(tokenUrl, connectionType) {
+async function fetchSessionAuth(tokenUrl, connectionType, headers = {}) {
   const url = new URL(tokenUrl, globalThis.location?.href ?? 'http://localhost/');
   if (connectionType === 'websocket') url.searchParams.set('type', 'websocket');
-  const res = await fetch(url, { cache: 'no-store' });
+  const res = await fetch(url, { cache: 'no-store', headers });
   if (!res.ok) {
     throw new Error(
-      `Could not get a voice token (HTTP ${res.status}). Is the voice server running? In voice-agent/: npm run server`,
+      `Could not get a voice token (HTTP ${res.status}). Locally, is the voice server running? In voice-agent/: npm run server`,
     );
   }
   return res.json();

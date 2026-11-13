@@ -27,6 +27,8 @@ export interface StartVoiceOptions {
   bank: Bank;
   onEvent: (event: VoiceEvent) => void;
   tokenUrl?: string;
+  /** Extra headers for the token request, e.g. a public demo's passcode. */
+  tokenHeaders?: Record<string, string>;
   language?: string;
   userName?: string;
 }
