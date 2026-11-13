@@ -20,8 +20,11 @@
 //    that look like messages are flagged instead of read out.
 
 export const DEFAULT_VOICE_LIMIT = 1000;
-/** A first payment to someone found only by their Wisetag: the usual route for scams, so less by voice. */
-export const FIRST_WISETAG_LIMIT = 200;
+/**
+ * A first payment to someone found only by their Wisetag: the usual route for scams, so less by voice.
+ * Raised from 200 to 300 on 2026-11-14 so the pitch demo's "Actually, make it 250 euros" goes through.
+ */
+export const FIRST_WISETAG_LIMIT = 300;
 const PREPARED_TTL_MS = 5 * 60 * 1000;
 const SPEAKER_CONSENT_TTL_MS = 3 * 60 * 1000;
 const MAX_TURN_CHARS = 1000;

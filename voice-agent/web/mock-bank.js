@@ -57,7 +57,11 @@ export function createMockBank({
     { id: 'ct_mari', name: 'Mari Lepp', onWise: false, phone: '+372 5555 1187' },
   ];
   // People on Wise who are neither saved nor in the contacts, found only by their exact Wisetag.
-  const wiseUsers = [{ id: 'wu_john', name: 'John Jensen', wisetag: 'johnj1999' }];
+  const wiseUsers = [
+    { id: 'wu_john', name: 'John Jensen', wisetag: 'johnj1999' },
+    // Maria's mother in England, the person she pays in the pitch demo (same as app/src/bank/seed.ts).
+    { id: 'wu_helen', name: 'Helen Brooks', wisetag: 'helen1953' },
+  ];
   const transactions = [
     { id: 'tx_3', direction: 'in', counterparty: 'Pension payment', amount: 742.1, currency: 'EUR', date: dayOffset(today, 1), status: 'completed' },
     { id: 'tx_2', direction: 'out', counterparty: 'Oskar', amount: 30, currency: 'GBP', date: dayOffset(today, 6), status: 'completed' },

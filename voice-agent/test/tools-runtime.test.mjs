@@ -590,17 +590,46 @@ test('Wisetag: found by its exact tag, spelled back with the owner, and paid onl
   assert.equal(p2.readback.includes("haven't paid"), false);
 });
 
+test("Pitch demo: Maria's mother is not saved, is found by her Wisetag, confirmed as \"my mum\", raised to 250 euros and paid", async () => {
+  const ctx = setup();
+  ctx.say('Hey Wise, send 200 euros to my mother in England.');
+  const saved = await ctx.tools.find_recipient({ name: 'my mother' });
+  assert.notEqual(saved.found, true, 'she is not a saved recipient or a contact');
+  ctx.say('No, but I have her Wisetag. It is helen nineteen fifty-three.');
+  const found = await ctx.tools.find_wise_user({ wisetag: 'helen1953' });
+  assert.equal(found.name, 'Helen Brooks');
+  assert.match(found.say, /"The Wisetag H, E, L, E, N, 1, 9, 5, 3 belongs to Helen Brooks\. Is that the person you want to pay\?"/);
+  ctx.say("Yes, that's my mum.");
+  const first = await ctx.tools.get_quote({ recipient_id: found.recipient_id, amount: 200, currency: 'EUR' });
+  assert.equal(first.ok, true);
+  const firstPrepared = await ctx.tools.prepare_transfer({ quote_id: first.quote_id });
+  ctx.agent(`${firstPrepared.readback} Shall I send it?`);
+  ctx.say('Actually, make it 250 euros.');
+  const quote = await ctx.tools.get_quote({ recipient_id: found.recipient_id, amount: 250, currency: 'EUR' });
+  assert.equal(quote.ok, true, 'a first payment of 250 euros to a Wisetag is within FIRST_WISETAG_LIMIT');
+  const prepared = await ctx.tools.prepare_transfer({ quote_id: quote.quote_id });
+  assert.equal(
+    prepared.readback,
+    "You are sending 250 euros to Helen Brooks's Wise account, found by their Wisetag, and you haven't paid them before. There is no fee. You pay 250 euros in total. It should arrive in seconds.",
+  );
+  ctx.agent(`${prepared.readback} Shall I send it?`);
+  ctx.say('Yes.');
+  assert.equal((await ctx.tools.confirm_transfer({ transfer_id: prepared.transfer_id })).status, 'sent');
+  const toHelen = (await ctx.bank.listTransactions({ direction: 'out' })).filter((t) => t.counterparty === 'Helen Brooks');
+  assert.deepEqual(toHelen.map((t) => [t.amount, t.currency]), [[250, 'EUR']], 'only the 250 euros went, not the 200 first read back');
+});
+
 test('Wisetag: a first payment has a lower limit; a no, a wrong tag, an odd owner name or a skipped lookup is refused', async () => {
   const ctx = setup();
-  ctx.say('Pay johnj1999 250 euros');
+  ctx.say('Pay johnj1999 350 euros');
   await ctx.tools.find_wise_user({ wisetag: 'johnj1999' });
   ctx.say('No, that is not the right person.');
   assert.equal((await ctx.tools.get_quote({ recipient_id: 'wu_john', amount: 20, currency: 'EUR' })).error, 'confirm_person_first');
   ctx.say('Sorry, yes, it is.');
-  const big = await ctx.tools.get_quote({ recipient_id: 'wu_john', amount: 250, currency: 'EUR' });
+  const big = await ctx.tools.get_quote({ recipient_id: 'wu_john', amount: 350, currency: 'EUR' });
   assert.equal(big.error, 'over_voice_limit');
-  assert.match(big.say, /first payment to someone found by their Wisetag can be up to 200 euros by voice/);
-  assert.equal((await ctx.tools.get_quote({ recipient_id: 'wu_john', amount: 200, currency: 'EUR' })).ok, true);
+  assert.match(big.say, /first payment to someone found by their Wisetag can be up to 300 euros by voice/);
+  assert.equal((await ctx.tools.get_quote({ recipient_id: 'wu_john', amount: 300, currency: 'EUR' })).ok, true);
 
   const missing = await ctx.tools.find_wise_user({ wisetag: 'john j 1998' });
   assert.equal(missing.found, false);

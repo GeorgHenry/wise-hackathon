@@ -120,7 +120,7 @@ All methods are async and return plain JSON; errors reject with an `Error` whose
   the tag back with the owner's name ("The Wisetag J, O, H, N, J, 1, 9, 9, 9 belongs to John Jensen. Is
   that the person you want to pay?"), and `get_quote` refuses until the user says yes. An owner name that
   looks like a message ("Wise Security Team") is not paid by voice. The readback says "found by their
-  Wisetag, and you haven't paid them before", and a first payment to a Wisetag is capped at 200 by voice
+  Wisetag, and you haven't paid them before", and a first payment to a Wisetag is capped at 300 by voice
   (`FIRST_WISETAG_LIMIT`), since paying a stranger is how most scams work.
 - **Loudspeaker privacy.** While `getAudioPrivacy()` is `speaker`, balances, payments, quotes and the
   readback are withheld from the agent until the user agrees out loud. Agreement lasts 3 minutes and

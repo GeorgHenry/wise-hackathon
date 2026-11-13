@@ -44,7 +44,11 @@ export function createSeed(today: Date): Seed {
       { id: 'ct_martin', name: 'Martin Saar', onWise: true },
       { id: 'ct_mari', name: 'Mari Lepp', onWise: false },
     ],
-    wiseUsers: [{ id: 'wu_john', name: 'John Jensen', wisetag: 'johnj1999' }],
+    wiseUsers: [
+      { id: 'wu_john', name: 'John Jensen', wisetag: 'johnj1999' },
+      // Maria's mother in England, the person she pays in the pitch demo ("No, but I have her Wisetag").
+      { id: 'wu_helen', name: 'Helen Brooks', wisetag: 'helen1953' },
+    ],
     transactions: [
       { id: 'tx_seed_5', direction: 'in', counterparty: 'Pension payment', amount: 742.1, currency: 'EUR', date: daysAgo(1), status: 'completed' },
       { id: 'tx_seed_4', direction: 'out', counterparty: 'Toivo Kask', amount: 50, currency: 'EUR', date: daysAgo(4), status: 'completed' },

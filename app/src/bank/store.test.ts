@@ -476,6 +476,12 @@ describe('Wise users found by Wisetag', () => {
     expect((await store.findWiseUser('john j 1999'))?.id).toBe('wu_john');
   });
 
+  it("finds Maria's mother by the Wisetag she gives in the pitch demo", async () => {
+    const helen = { id: 'wu_helen', name: 'Helen Brooks', wisetag: 'helen1953' };
+    expect(await makeStore().findWiseUser('helen1953')).toEqual(helen);
+    expect(await makeStore().findWiseUser('@Helen 1953')).toEqual(helen);
+  });
+
   it('finds nobody for a Wisetag that does not exist', async () => {
     expect(await makeStore().findWiseUser('johnj1998')).toBeNull();
     expect(await makeStore().findWiseUser('')).toBeNull();
