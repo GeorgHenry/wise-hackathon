@@ -33,8 +33,17 @@ const dayOffset = (today, days) => {
  * @param {Date} [options.today]
  * @param {object[]} [options.extraRecipients]  More saved people, e.g. a second Kadri for tests.
  * @param {boolean} [options.withContacts]  false: behave like a bank without findContacts.
+ * @param {boolean} [options.withWiseUsers]  false: behave like a bank without findWiseUser.
  */
-export function createMockBank({ audio = 'private', approve = () => true, approvalDelayMs = 0, today = new Date(), extraRecipients = [], withContacts = true } = {}) {
+export function createMockBank({
+  audio = 'private',
+  approve = () => true,
+  approvalDelayMs = 0,
+  today = new Date(),
+  extraRecipients = [],
+  withContacts = true,
+  withWiseUsers = true,
+} = {}) {
   const balances = { EUR: 1840.25, GBP: 312.6 };
   const recipients = [
     { id: 'rcp_kadri', name: 'Kadri', nickname: 'my daughter', currency: 'GBP', detail: 'UK account ending 4417', verified: true },
@@ -47,6 +56,8 @@ export function createMockBank({ audio = 'private', approve = () => true, approv
     { id: 'ct_martin', name: 'Martin Saar', onWise: true, phone: '+372 5555 4410' },
     { id: 'ct_mari', name: 'Mari Lepp', onWise: false, phone: '+372 5555 1187' },
   ];
+  // People on Wise who are neither saved nor in the contacts, found only by their exact Wisetag.
+  const wiseUsers = [{ id: 'wu_john', name: 'John Jensen', wisetag: 'johnj1999' }];
   const transactions = [
     { id: 'tx_3', direction: 'in', counterparty: 'Pension payment', amount: 742.1, currency: 'EUR', date: dayOffset(today, 1), status: 'completed' },
     { id: 'tx_2', direction: 'out', counterparty: 'Oskar', amount: 30, currency: 'GBP', date: dayOffset(today, 6), status: 'completed' },
@@ -93,6 +104,17 @@ export function createMockBank({ audio = 'private', approve = () => true, approv
         }
       : {}),
 
+    ...(withWiseUsers
+      ? {
+          // Exact match only; an @, capitals, spaces and punctuation are ignored ("@JohnJ1999", "john j 1999").
+          async findWiseUser(wisetag) {
+            const wanted = String(wisetag ?? '').toLowerCase().replace(/[^a-z0-9]/g, '');
+            const user = wanted ? wiseUsers.find((u) => u.wisetag === wanted) : undefined;
+            return user ? { ...user } : null;
+          },
+        }
+      : {}),
+
     async listTransactions({ direction, counterparty, limit = 10 } = {}) {
       return transactions
         .filter((t) => !direction || t.direction === direction)
@@ -104,11 +126,12 @@ export function createMockBank({ audio = 'private', approve = () => true, approv
     async getQuote({ recipientId, amount, currency, amountIs }) {
       const saved = recipients.find((r) => r.id === recipientId);
       const contact = saved ? null : contacts.find((c) => c.id === recipientId);
-      if (!saved && !contact) throw bankError('unknown_recipient', 'No saved recipient or contact with that id');
+      const wiseUser = saved || contact || !withWiseUsers ? null : wiseUsers.find((u) => u.id === recipientId);
+      if (!saved && !contact && !wiseUser) throw bankError('unknown_recipient', 'No saved recipient or contact with that id');
       if (contact && !contact.onWise) throw bankError('not_on_wise', 'This contact does not use Wise');
       if (!RATES_FROM_EUR[currency]) throw bankError('unsupported_currency', 'Currency not supported');
-      const recipient = saved ?? contact;
-      // A Wise account takes the currency the user names; a bank account has its own.
+      const recipient = saved ?? contact ?? wiseUser;
+      // A Wise account (a contact's, or one found by Wisetag) takes the currency the user names; a bank account has its own.
       const targetCurrency = saved ? saved.currency : currency;
       // Paid from the balance in that currency when it covers the amount, otherwise converted from euros.
       const sourceCurrency =
@@ -129,6 +152,8 @@ export function createMockBank({ audio = 'private', approve = () => true, approv
         id: `qt_${nextId++}`,
         recipientId,
         recipientName: recipient.name,
+        recipientKind: saved ? 'saved' : contact ? 'contact' : 'wise_user',
+        ...(wiseUser ? { recipientWisetag: wiseUser.wisetag } : {}),
         sourceAmount,
         sourceCurrency,
         targetAmount,
@@ -136,7 +161,7 @@ export function createMockBank({ audio = 'private', approve = () => true, approv
         rate: round2(rate * 10000) / 10000,
         fee,
         feeCurrency: sourceCurrency,
-        arrival: contact ? 'in seconds' : 'today',
+        arrival: saved ? 'today' : 'in seconds',
         expiresAt: new Date(Date.now() + QUOTE_LIFETIME_MS).toISOString(),
       };
       quotes.set(quote.id, quote);

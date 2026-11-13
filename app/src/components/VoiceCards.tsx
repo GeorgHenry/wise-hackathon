@@ -93,7 +93,7 @@ const OUTCOME: Partial<Record<TransferPhase, string>> = {
 
 interface TransferCardProps {
   view: TransferView;
-  /** For a phone contact: whether money has gone to them before. */
+  /** For a Wise account (a phone contact's, or one found by Wisetag): whether money has gone to them before. */
   paidBefore: boolean;
   onSend: () => void;
   onCancel: () => void;
@@ -122,6 +122,14 @@ export function TransferCard({ view, paidBefore, onSend, onCancel }: TransferCar
             <div>
               <dt>Contact</dt>
               <dd>On Wise, {paidBefore ? 'paid before' : 'first payment'}</dd>
+            </div>
+          )}
+          {transfer.recipientKind === 'wise_user' && (
+            <div>
+              <dt>Wisetag</dt>
+              <dd>
+                @{transfer.recipientWisetag}, {paidBefore ? 'paid before' : 'first payment'}
+              </dd>
             </div>
           )}
           <div>

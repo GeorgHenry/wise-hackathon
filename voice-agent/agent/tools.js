@@ -43,7 +43,7 @@ export const CLIENT_TOOLS = [
     description:
       'Find who the money is for, by name or nickname (for example "Martin", "Kadri" or "my daughter"). ' +
       'It looks in the people saved in Wise and in the phone\'s contacts who use Wise. ' +
-      'Always call it before get_quote. By voice, money can only go to those two kinds of people.',
+      'Call it (or find_wise_user, for a Wisetag) before get_quote.',
     parameters: {
       type: 'object',
       properties: { name: text('The name or nickname the user said.') },
@@ -51,13 +51,30 @@ export const CLIENT_TOOLS = [
     },
   },
   {
-    name: 'get_quote',
+    name: 'find_wise_user',
     description:
-      'Get the price of sending money to a saved recipient: what they receive, the fee, what the user pays and when it arrives. Nothing is sent.',
+      'Find someone on Wise by their Wisetag, when the user gives one (they may say "Wisetag", "Wise tag", "Wise ID", ' +
+      'or "at" followed by letters and numbers). It returns the owner\'s name. Then ask the question in its say, which ' +
+      'spells the tag and names the owner, and call get_quote only after the user says it is the right person.',
     parameters: {
       type: 'object',
       properties: {
-        recipient_id: text('The recipient_id from find_recipient.'),
+        wisetag: text(
+          'The Wisetag as letters and digits only: no spaces, no @, and spoken numbers written as digits. ' +
+            'For example "john j nineteen ninety-nine" is johnj1999.',
+        ),
+      },
+      required: ['wisetag'],
+    },
+  },
+  {
+    name: 'get_quote',
+    description:
+      'Get the price of sending money to the person found: what they receive, the fee, what the user pays and when it arrives. Nothing is sent.',
+    parameters: {
+      type: 'object',
+      properties: {
+        recipient_id: text('The recipient_id from find_recipient or find_wise_user.'),
         amount: { type: 'number', description: 'The amount the user said, as a number, for example 50 or 12.5.' },
         currency: text('Currency of that amount: EUR for euros, GBP for pounds, USD for dollars.', {
           enum: ['EUR', 'GBP', 'USD'],
@@ -82,9 +99,10 @@ export const CLIENT_TOOLS = [
   {
     name: 'confirm_transfer',
     description:
-      'Send a prepared transfer. Call it only when the user has just answered the readback with a clear yes. ' +
-      'Just before calling it, say: "Please approve it on your phone now." The user then approves on their phone, ' +
-      'which can take up to a minute. Returns the real final status; after that, only report the result.',
+      'Send a prepared transfer. Call it when the user has answered the readback with a yes, in any words ' +
+      '("yes", "yeah, I got it, send it", "go ahead"). Just before calling it, say: "Please approve it on your phone now." ' +
+      'The user then approves on their phone, which can take up to a minute. Returns the real final status; after that, ' +
+      'only report the result. If it answers needs_readback or needs_clear_yes, do what its say tells you.',
     parameters: {
       type: 'object',
       properties: { transfer_id: text('The transfer_id from prepare_transfer.') },

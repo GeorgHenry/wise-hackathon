@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createMockBank } from '../web/mock-bank.js';
 import {
+  classifyAnswer,
   cleanText,
   createToolRuntime,
   describeSender,
@@ -11,6 +12,7 @@ import {
   safeName,
   speakDate,
   speakMoney,
+  spellOut,
 } from '../web/tools-runtime.js';
 
 function setup({ audio = 'private', approve = () => true, voiceLimit, extraRecipients, bank: givenBank } = {}) {
@@ -29,17 +31,22 @@ function setup({ audio = 'private', approve = () => true, voiceLimit, extraRecip
     events,
     tools: runtime.clientTools,
     say: (text) => runtime.noteUserTurn(text),
+    type: (text) => runtime.noteUserTurn(text, { typed: true }),
+    /** The agent speaks: as when it reads the readback out in full. */
+    agent: (text) => runtime.noteAgentText(text),
     advance: (minutes) => {
       ms += minutes * 60000;
     },
   };
 }
 
-async function prepareTo(ctx, { name = 'Kadri', amount = 50, currency = 'GBP' } = {}) {
+/** Finds, quotes and prepares; by default the agent then reads the readback out in full. */
+async function prepareTo(ctx, { name = 'Kadri', amount = 50, currency = 'GBP', read = true } = {}) {
   ctx.say(`Send ${amount} to ${name}`);
   const found = await ctx.tools.find_recipient({ name });
   const quote = await ctx.tools.get_quote({ recipient_id: found.matches[0].recipient_id, amount, currency });
   const prepared = await ctx.tools.prepare_transfer({ quote_id: quote.quote_id });
+  if (read && prepared.readback) ctx.agent(`${prepared.readback} Shall I send it?`);
   return { found, quote, prepared };
 }
 
@@ -47,15 +54,43 @@ const round2 = (n) => Math.round(n * 100) / 100;
 const balance = async (bank, currency = 'EUR') => (await bank.getBalances()).find((b) => b.currency === currency).amount;
 const tick = () => new Promise((r) => setTimeout(r, 0));
 
-test('isClearYes: only a plain yes counts', () => {
+test('classifyAnswer: a yes in plain words, filler and all; not a change, condition, question or no', () => {
   const yes = ['Yes', 'yes please', 'Yes, send it.', 'OK', 'okay go ahead', 'Sure.', 'correct', 'Jah', 'Alright', 'Of course',
-    'Absolutely', 'Go for it', 'Yes please, no problem', "That's right", 'OK, go ahead and send it', 'Yes, I would like that'];
-  for (const u of yes) assert.equal(isClearYes(u), true, u);
-  const notYes = ['No', 'no thanks', 'Yes, but change the amount', 'not yet', "I'm not sure", 'wait', 'Yes?', 'Kadri', '', 'yes no',
-    'Stop', 'ei', 'Do it tomorrow.', 'Okay, let me think about it.', 'Okay, send it to Oskar instead.', "Okay, I can't afford that.", 'Is that okay', 'Can you send it', 'Do you think that is right',
-    'Yes, one more thing.', 'Yes, make it 40 pounds.', 'Sure, and how long will it take', 'Right', 'Shall I send it',
-    "Okay, I'll read it back", 'Send.', 'Yes '.repeat(60)];
-  for (const u of notYes) assert.equal(isClearYes(u), false, u);
+    'Absolutely', 'Go for it', 'Yes please, no problem', "That's right", 'OK, go ahead and send it', 'Yes, I would like that',
+    // Real answers from the live tests on 13 November that were wrongly refused:
+    'Yeah.', 'Yeah, sure.', 'Yeah, I got that already.', 'Oh, no. I, I, I, I got, I got the gist. Send the money now.', 'Yes, send it',
+    'Send the money now.', 'Send.', 'Uh-huh, go ahead.', 'Yes. Very, very much.', "Yes, that's what I want."];
+  for (const u of yes) assert.equal(classifyAnswer(u), 'yes', u);
+
+  // Repeating what was just read back is not a change.
+  const martin = { numbers: ['20'], currencies: ['pound'], self: ['martin', 'saar'], others: ['kadri', 'oskar', 'daughter'] };
+  for (const u of ['Yes, send the 20 pounds to Martin.', "Yes, send it to Martin's account", 'Yes, the twenty pounds']) {
+    assert.equal(classifyAnswer(u, martin), 'yes', u);
+  }
+
+  const expected = {
+    question: ["Hi. What's up?", 'Yes?', 'Is that okay', 'Can you send it', 'Do you think that is right', 'Shall I send it',
+      'Sure, and how long will it take'],
+    no: ['No', 'No.', 'no thanks', 'not yet', "I'm not sure", 'wait', 'yes no', 'Stop', 'ei', "Okay, I can't afford that.",
+      'Yes. Actually, no.', 'Hold on.', 'Yes, wait.'],
+    change: ['Yes, but change the amount', 'Okay, send it to Oskar instead.', 'Yes, make it 40 pounds.', 'Make it twenty-five.'],
+    condition: ['Do it tomorrow.', 'Yes, but quickly.', 'Yes, one more thing.'],
+    hold: ['Okay, let me think about it.', 'Okay. Well, no worries then.', "Okay, I'll read it back", 'Read it again, please.'],
+    neutral: ['Very, very much', '', 'Thank you.', 'I got the gist.', 'Right'],
+    unclear: ['Yes '.repeat(60)],
+  };
+  for (const [kind, answers] of Object.entries(expected)) {
+    for (const u of answers) assert.equal(classifyAnswer(u, martin), kind, u);
+  }
+  // Another person, currency or amount than the readback's is a change.
+  for (const u of ['Kadri', 'Yes, send it to Kadri.', 'Send it to my daughter.', 'Send it to John.', 'Yes, in euros.', 'Yes, 30 pounds.']) {
+    assert.equal(classifyAnswer(u, martin), 'change', u);
+  }
+  // Confirming who a person is: amounts may be mentioned, other people may not.
+  const john = { amountsOk: true, self: ['john', 'jensen', 'johnj1999'], others: ['kadri'] };
+  assert.equal(classifyAnswer('Yes, that is John. Send him 20 euros.', john), 'yes');
+  assert.equal(classifyAnswer('No, I meant Kadri.', john), 'change');
+  assert.equal(isClearYes('Yes, send it'), true);
 });
 
 test('isSpeakerConsent: a yes or a short "read it out", nothing else', () => {
@@ -208,53 +243,62 @@ test('on the loudspeaker, payment details wait for consent, then the send needs 
   ctx.say('Yes, read it out.');
   const prepared = await ctx.tools.prepare_transfer({ quote_id: quote.quote_id, read_aloud_ok: true });
   assert.match(prepared.readback, /^You are sending 50 pounds to Kadri\./);
+  ctx.agent(prepared.readback);
   assert.equal((await ctx.tools.confirm_transfer({ transfer_id: prepared.transfer_id })).error, 'needs_clear_yes');
   ctx.say('Yes, send it.');
   assert.equal((await ctx.tools.confirm_transfer({ transfer_id: prepared.transfer_id })).status, 'sent');
 });
 
-test('confirm_transfer refuses without a plain yes after the readback, and nothing moves', async () => {
+test('confirm_transfer refuses until the latest answer after the readback is a yes, and nothing moves before', async () => {
   const ctx = setup();
   const before = await balance(ctx.bank);
   const { prepared } = await prepareTo(ctx);
   assert.equal(prepared.readback, 'You are sending 50 pounds to Kadri. There is no fee. You pay 50 pounds in total. It should arrive today.');
-  assert.equal((await ctx.tools.confirm_transfer({ transfer_id: prepared.transfer_id })).error, 'needs_clear_yes', 'same breath');
-  for (const answer of ['No.', 'Yes, but make it 40.', 'Do it tomorrow.', 'Okay, let me think about it.']) {
+  const sameBreath = await ctx.tools.confirm_transfer({ transfer_id: prepared.transfer_id });
+  assert.equal(sameBreath.error, 'needs_clear_yes', 'no answer yet');
+  assert.match(sameBreath.say, /has not answered yet/);
+  for (const [answer, reason] of [['No.', /did not say yes/], ['Do it tomorrow.', /now or not at all/], ['Okay, let me think about it.', /wants a moment/], ['How long will it take?', /asked something/]]) {
     ctx.say(answer);
-    assert.equal((await ctx.tools.confirm_transfer({ transfer_id: prepared.transfer_id })).error, 'needs_clear_yes', answer);
+    const result = await ctx.tools.confirm_transfer({ transfer_id: prepared.transfer_id });
+    assert.equal(result.error, 'needs_clear_yes', answer);
+    assert.match(result.say, reason, answer);
   }
-  ctx.say('Yes.'); // a yes after other answers still needs a fresh readback
-  assert.equal((await ctx.tools.confirm_transfer({ transfer_id: prepared.transfer_id })).error, 'needs_clear_yes');
   assert.equal(await balance(ctx.bank), before);
+  ctx.say('Yes, go ahead.'); // the latest answer decides; the details need not be read again
+  assert.equal((await ctx.tools.confirm_transfer({ transfer_id: prepared.transfer_id })).status, 'sent');
+  assert.ok(ctx.events.filter((e) => e.type === 'confirm_blocked').every((e) => typeof e.reason === 'string'));
 });
 
-test('a changed amount disarms the waiting transfer (the old one can never be sent)', async () => {
+test('asking for another amount drops the waiting transfer at once (the old one can never be sent)', async () => {
   const ctx = setup();
   const beforeGbp = await balance(ctx.bank, 'GBP');
   const { prepared } = await prepareTo(ctx, { amount: 50 });
   ctx.say('Yes, make it 40 pounds.');
-  const newQuote = await ctx.tools.get_quote({ recipient_id: 'rcp_kadri', amount: 40, currency: 'GBP' });
-  assert.ok(ctx.events.some((e) => e.type === 'transfer_cancelled' && e.transfer_id === prepared.transfer_id));
+  await tick();
+  assert.ok(ctx.events.some((e) => e.type === 'transfer_cancelled' && e.transfer_id === prepared.transfer_id && e.reason === 'changed'));
   ctx.say('Yes.');
-  assert.equal((await ctx.tools.confirm_transfer({ transfer_id: prepared.transfer_id })).error, 'not_prepared');
+  const old = await ctx.tools.confirm_transfer({ transfer_id: prepared.transfer_id });
+  assert.equal(old.error, 'not_prepared');
+  assert.match(old.say, /asked for another amount/);
+  const newQuote = await ctx.tools.get_quote({ recipient_id: 'rcp_kadri', amount: 40, currency: 'GBP' });
   const second = await ctx.tools.prepare_transfer({ quote_id: newQuote.quote_id });
-  ctx.say('Yes, send it.');
+  ctx.agent(second.readback);
+  ctx.say('Yes, send the 40 pounds.'); // repeating the new amount is not a change
   assert.equal((await ctx.tools.confirm_transfer({ transfer_id: second.transfer_id })).status, 'sent');
   const out = await ctx.bank.listTransactions({ direction: 'out' });
   assert.equal(out[0].amount, 40);
   assert.equal(round2(beforeGbp - (await balance(ctx.bank, 'GBP'))), 40, 'only the 40-pound transfer was paid');
 });
 
-test('a question between the readback and the yes means reading back again', async () => {
+test('a question after the readback is answered, then a yes sends it without reading it all again', async () => {
   const ctx = setup();
-  const { quote, prepared } = await prepareTo(ctx);
+  const { prepared } = await prepareTo(ctx);
   ctx.say('How long will it take?');
-  ctx.say('Yes.');
   assert.equal((await ctx.tools.confirm_transfer({ transfer_id: prepared.transfer_id })).error, 'needs_clear_yes');
-  const again = await ctx.tools.prepare_transfer({ quote_id: quote.quote_id });
+  ctx.agent('It should arrive today. Shall I send it?');
   ctx.say('Yes.');
   ctx.say('Send it.'); // one yes, transcribed in two parts
-  assert.equal((await ctx.tools.confirm_transfer({ transfer_id: again.transfer_id })).status, 'sent');
+  assert.equal((await ctx.tools.confirm_transfer({ transfer_id: prepared.transfer_id })).status, 'sent');
 });
 
 test('a waiting transfer expires after five minutes', async () => {
@@ -406,6 +450,11 @@ test('"Transfer 20 dollars to Martin": a phone contact on Wise, read back, yes, 
     prepared.readback,
     /^You are sending 20 dollars to Martin Saar's Wise account\. Martin Saar is in your phone contacts, and you haven't paid them before\. The fee is .+ You pay 18 euros and \d+ cents in total\. It should arrive in seconds\.$/,
   );
+  // Prepared but not yet said: the agent is handed a short version to say first.
+  const unread = await ctx.tools.confirm_transfer({ transfer_id: prepared.transfer_id });
+  assert.equal(unread.error, 'needs_readback');
+  assert.match(unread.say, /"Just to be sure: 20 dollars to Martin Saar, who you haven't paid before, and you pay 18 euros and 93 cents in total\. Shall I send it\?"/);
+  ctx.agent(`${prepared.readback} Shall I send it?`);
   assert.equal((await ctx.tools.confirm_transfer({ transfer_id: prepared.transfer_id })).error, 'needs_clear_yes');
   ctx.say('Yes.');
   assert.equal((await ctx.tools.confirm_transfer({ transfer_id: prepared.transfer_id })).status, 'sent');
@@ -435,4 +484,142 @@ test('contacts: one without Wise cannot be paid; saved people win over contacts;
   const noContacts = setup({ bank: createMockBank({ withContacts: false }) });
   const r = await noContacts.tools.find_recipient({ name: 'Martin' });
   assert.equal(r.found, false);
+});
+
+test('the 13 November live call, replayed: words said over the readback are ignored, the yes after it sends', async () => {
+  const ctx = setup();
+  ctx.say('Okay. Yeah, sure. Hi. Can you, can you send the money to Martin? Send.');
+  const found = await ctx.tools.find_recipient({ name: 'Martin' });
+  ctx.say('Uh, send him, uh, send, uh, send him 20 pounds.');
+  const quote = await ctx.tools.get_quote({ recipient_id: found.matches[0].recipient_id, amount: 20, currency: 'GBP' });
+  const prepared = await ctx.tools.prepare_transfer({ quote_id: quote.quote_id });
+  const full = `${prepared.readback} Shall I send it?`;
+  ctx.agent(full);
+  ctx.runtime.noteAgentCorrection(full, 'You are...'); // the user talked over it after two words
+  ctx.say("Hi. What's up?");
+  ctx.agent(full); // the agent read it out again, in full
+  ctx.say('Yeah.');
+  assert.equal((await ctx.tools.confirm_transfer({ transfer_id: prepared.transfer_id })).status, 'sent');
+});
+
+test('a readback cut off after the name and amount counts as heard: "Yeah, I got that already" sends it', async () => {
+  const ctx = setup();
+  const { prepared } = await prepareTo(ctx, { name: 'Martin', amount: 20, currency: 'GBP', read: false });
+  const full = `Nothing has been sent yet. ${prepared.readback} Shall I send it? Please answer yes or no.`;
+  ctx.agent(full);
+  ctx.runtime.noteAgentCorrection(
+    full,
+    "Nothing has been sent yet. You are sending 20 pounds to Martin Saar's Wise account. Martin Saar is in your phone contacts, and you haven't...",
+  );
+  ctx.say('Yeah, I got that already.');
+  assert.equal((await ctx.tools.confirm_transfer({ transfer_id: prepared.transfer_id })).status, 'sent');
+});
+
+test('a readback cut off before the amounts: a yes gets the short version first, then sends', async () => {
+  const ctx = setup();
+  const { prepared } = await prepareTo(ctx, { name: 'Martin', amount: 30, currency: 'USD', read: false });
+  const full = `${prepared.readback} Shall I send it?`;
+  ctx.agent(full);
+  ctx.runtime.noteAgentCorrection(full, "You are sending 30 dollars to Martin Saar's Wise account. Martin Saar is in your phone contacts, and you haven't paid them before. The fee is ...");
+  ctx.say('Yes, yes, send it.'); // said over the readback, before the amounts were heard
+  const first = await ctx.tools.confirm_transfer({ transfer_id: prepared.transfer_id });
+  assert.equal(first.error, 'needs_readback');
+  const short = /Say exactly: "([^"]+)"/.exec(first.say)[1];
+  assert.equal(short, "Just to be sure: 30 dollars to Martin Saar, who you haven't paid before, and you pay 28 euros and 20 cents in total. Shall I send it?");
+  ctx.agent(short);
+  ctx.say('Yes.');
+  assert.equal((await ctx.tools.confirm_transfer({ transfer_id: prepared.transfer_id })).status, 'sent');
+});
+
+test("a typed yes (the card's Send button) counts even when the spoken readback was cut short; stray words after it do not undo it", async () => {
+  const ctx = setup();
+  const { prepared } = await prepareTo(ctx, { name: 'Martin', amount: 20, currency: 'GBP', read: false });
+  const full = `Nothing has been sent yet. Here are the full details. ${prepared.readback} Shall I send it?`;
+  ctx.agent(full);
+  ctx.runtime.noteAgentCorrection(full, 'Nothing has been sent yet. Here are the full ...');
+  ctx.type('Yes, send it');
+  ctx.say('Very, very much'); // a stray transcript says nothing either way
+  assert.equal((await ctx.tools.confirm_transfer({ transfer_id: prepared.transfer_id })).status, 'sent');
+});
+
+test('naming another person after the readback drops the transfer', async () => {
+  const ctx = setup();
+  const { prepared } = await prepareTo(ctx, { name: 'Martin', amount: 20, currency: 'GBP' });
+  ctx.say('Send it to Kadri instead.');
+  await tick();
+  ctx.say('Yes.');
+  assert.equal((await ctx.tools.confirm_transfer({ transfer_id: prepared.transfer_id })).error, 'not_prepared');
+});
+
+test('Wisetag: found by its exact tag, spelled back with the owner, and paid only after the user confirms the person', async () => {
+  const ctx = setup();
+  const before = await balance(ctx.bank);
+  ctx.say('Send 20 euros to Wisetag john j 1999.');
+  const found = await ctx.tools.find_wise_user({ wisetag: '@JohnJ1999' });
+  assert.equal(found.found, true);
+  assert.equal(found.name, 'John Jensen');
+  assert.equal(found.wisetag, spellOut('johnj1999'));
+  assert.equal(found.wisetag, 'J, O, H, N, J, 1, 9, 9, 9');
+  assert.equal(found.paid_before, false);
+  assert.match(found.say, /"The Wisetag J, O, H, N, J, 1, 9, 9, 9 belongs to John Jensen\. Is that the person you want to pay\?"/);
+  const early = await ctx.tools.get_quote({ recipient_id: found.recipient_id, amount: 20, currency: 'EUR' });
+  assert.equal(early.error, 'confirm_person_first', 'the agent may not skip the question');
+  ctx.say('Yes, that is him. Send him 20 euros.');
+  const quote = await ctx.tools.get_quote({ recipient_id: found.recipient_id, amount: 20, currency: 'EUR' });
+  assert.deepEqual([quote.they_receive, quote.you_pay, quote.fee, quote.arrives], ['20 euros', '20 euros', 'no fee', 'in seconds']);
+  const usd = await ctx.tools.get_quote({ recipient_id: found.recipient_id, amount: 20, currency: 'USD' });
+  assert.deepEqual([usd.they_receive, usd.you_pay, usd.fee], ['20 dollars', '18 euros and 93 cents', '47 euro cents']);
+  const prepared = await ctx.tools.prepare_transfer({ quote_id: quote.quote_id });
+  assert.equal(
+    prepared.readback,
+    "You are sending 20 euros to John Jensen's Wise account, found by their Wisetag, and you haven't paid them before. There is no fee. You pay 20 euros in total. It should arrive in seconds.",
+  );
+  ctx.agent(`${prepared.readback} Shall I send it?`);
+  ctx.say('Yeah, I got the gist. Send the money now.');
+  assert.equal((await ctx.tools.confirm_transfer({ transfer_id: prepared.transfer_id })).status, 'sent');
+  const out = await ctx.bank.listTransactions({ direction: 'out' });
+  assert.deepEqual([out[0].counterparty, out[0].amount, out[0].currency], ['John Jensen', 20, 'EUR']);
+  assert.equal(round2(before - (await balance(ctx.bank))), 20);
+
+  // Later in the same call: already confirmed and paid before, so no question and a shorter readback.
+  const again = await ctx.tools.find_wise_user({ wisetag: 'johnj1999' });
+  assert.equal(again.paid_before, true);
+  assert.match(again.say, /already confirmed/);
+  const q2 = await ctx.tools.get_quote({ recipient_id: 'wu_john', amount: 5, currency: 'EUR' });
+  const p2 = await ctx.tools.prepare_transfer({ quote_id: q2.quote_id });
+  assert.equal(p2.readback.includes("haven't paid"), false);
+});
+
+test('Wisetag: a first payment has a lower limit; a no, a wrong tag, an odd owner name or a skipped lookup is refused', async () => {
+  const ctx = setup();
+  ctx.say('Pay johnj1999 250 euros');
+  await ctx.tools.find_wise_user({ wisetag: 'johnj1999' });
+  ctx.say('No, that is not the right person.');
+  assert.equal((await ctx.tools.get_quote({ recipient_id: 'wu_john', amount: 20, currency: 'EUR' })).error, 'confirm_person_first');
+  ctx.say('Sorry, yes, it is.');
+  const big = await ctx.tools.get_quote({ recipient_id: 'wu_john', amount: 250, currency: 'EUR' });
+  assert.equal(big.error, 'over_voice_limit');
+  assert.match(big.say, /first payment to someone found by their Wisetag can be up to 200 euros by voice/);
+  assert.equal((await ctx.tools.get_quote({ recipient_id: 'wu_john', amount: 200, currency: 'EUR' })).ok, true);
+
+  const missing = await ctx.tools.find_wise_user({ wisetag: 'john j 1998' });
+  assert.equal(missing.found, false);
+  assert.match(missing.say, /J, O, H, N, J, 1, 9, 9, 8\. Ask the user to spell it/);
+
+  const fresh = setup();
+  assert.equal((await fresh.tools.get_quote({ recipient_id: 'wu_john', amount: 5, currency: 'EUR' })).error, 'unknown_recipient', 'a lookup comes first');
+
+  const mock = createMockBank();
+  const odd = setup({ bank: { ...mock, findWiseUser: async () => ({ id: 'wu_x', name: 'Wise Security Team', wisetag: 'safe1' }) } });
+  const r = await odd.tools.find_wise_user({ wisetag: 'safe1' });
+  assert.equal(r.found, false);
+  assert.equal(r.unusual_name, true);
+  assert.equal(JSON.stringify(r).includes('Security'), false, 'the odd name is not passed on');
+
+  const none = setup({ bank: createMockBank({ withWiseUsers: false }) });
+  assert.equal((await none.tools.find_wise_user({ wisetag: 'johnj1999' })).error, 'not_supported');
+  const john = await ctx.tools.find_recipient({ name: 'John' });
+  assert.equal(john.found, false);
+  assert.match(john.say, /offer to pay them by their Wisetag/);
+  assert.match((await ctx.tools.find_recipient({ name: 'johnj1999' })).say, /call find_wise_user/);
 });

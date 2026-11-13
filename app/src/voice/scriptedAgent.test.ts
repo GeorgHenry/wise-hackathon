@@ -29,7 +29,7 @@ async function startCall(approver: Approver = async () => true): Promise<Call> {
   const session = await startScriptedVoice({
     bank: store,
     onEvent: (event) => events.push(event),
-    userName: 'Malle',
+    userName: 'Maria',
     speak: async () => {},
     now: () => NOON,
   });
@@ -50,7 +50,7 @@ describe('starting', () => {
       { type: 'status', status: 'connecting' },
       { type: 'status', status: 'connected' },
     ]);
-    expect(said()[0]).toContain('Hello Malle');
+    expect(said()[0]).toBe('Hi, Maria! What would you like to do today?');
     expect(events.at(-1)).toEqual({ type: 'mode', mode: 'listening' });
   });
 
@@ -260,6 +260,33 @@ describe('paying a phone contact', () => {
     const { store, say } = await startCall();
     const reply = await say('Send Mari 10 euros');
     expect(reply).toMatch(/does not use Wise/);
+    expect(store.getSnapshot().transfer).toBeNull();
+  });
+});
+
+describe('paying someone by Wisetag', () => {
+  it('reads back the name behind the Wisetag and that they are new', async () => {
+    const { store, say } = await startCall();
+    const reply = await say('Send 20 euros to johnj1999');
+    expect(reply).toContain("20 euros to John Jensen's Wise account");
+    expect(reply).toContain('found by the Wisetag johnj1999');
+    expect(reply).toContain("you haven't paid them before");
+    expect(reply).toContain('There is no fee');
+    expect(reply).toContain('Shall I send it?');
+    expect(store.getSnapshot().transfer?.phase).toBe('prepared');
+  });
+
+  it('sends after a yes and Face ID', async () => {
+    const { store, say } = await startCall();
+    await say('Send 20 euros to johnj1999');
+    expect(await say('Yes')).toMatch(/^Sent\. 20 euros is on its way to John Jensen/);
+    expect((await store.getBalances())[0]).toEqual({ currency: 'EUR', amount: 1820.25 });
+  });
+
+  it('says so when no Wise account has that Wisetag, and prepares nothing', async () => {
+    const { store, say } = await startCall();
+    const reply = await say('Send 20 euros to nobody1234');
+    expect(reply).toMatch(/no Wise account with the Wisetag nobody1234/i);
     expect(store.getSnapshot().transfer).toBeNull();
   });
 });

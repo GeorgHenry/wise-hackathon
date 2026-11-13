@@ -21,6 +21,16 @@ describe('what the user wants', () => {
     expect(parseIntent('Transfer 20 dollars to Martin')).toEqual({ kind: 'send', amount: 20, currency: 'USD' });
   });
 
+  it('hears a Wisetag, wherever it sits in the sentence', () => {
+    expect(parseIntent('Send 20 euros to johnj1999')).toEqual({ kind: 'send', amount: 20, currency: 'EUR', wisetag: 'johnj1999' });
+    expect(parseIntent('send @JohnJ1999 20 euros')).toEqual({ kind: 'send', amount: 20, currency: 'EUR', wisetag: 'johnj1999' });
+  });
+
+  it('does not take an amount with its currency for a Wisetag', () => {
+    expect(parseIntent('Send Oskar 30 pounds')).toEqual({ kind: 'send', amount: 30, currency: 'GBP' });
+    expect(parseIntent('send 12.50 euros to Toivo')).not.toHaveProperty('wisetag');
+  });
+
   it('hears a request to send that leaves the amount for later', () => {
     expect(parseIntent('I want to send money to Kadri')).toEqual({ kind: 'send' });
   });

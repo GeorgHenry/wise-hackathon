@@ -28,7 +28,7 @@ export async function startVoice(options = {}) {
     onEvent = () => {},
     tokenUrl = '/voice-api/token',
     language = 'en',
-    userName = 'Malle',
+    userName = 'Maria',
     connectionType = 'webrtc',
     voiceLimit,
   } = options;
@@ -74,10 +74,14 @@ export async function startVoice(options = {}) {
       onModeChange: ({ mode }) => emit({ type: 'mode', mode }), // 'speaking' | 'listening'
       onMessage: ({ message, role }) => {
         if (role === 'user') runtime.noteUserTurn(message);
+        else if (role === 'agent') runtime.noteAgentText(message); // did the user hear the payment details?
         emit({ type: 'transcript', role, text: message, final: true });
       },
-      onAgentResponseCorrection: (c) =>
-        emit({ type: 'transcript_correction', role: 'agent', text: c?.corrected_agent_response ?? '' }),
+      // The user talked over the agent: only what was said before it stopped was heard.
+      onAgentResponseCorrection: (c) => {
+        runtime.noteAgentCorrection(c?.original_agent_response ?? '', c?.corrected_agent_response ?? '');
+        emit({ type: 'transcript_correction', role: 'agent', text: c?.corrected_agent_response ?? '' });
+      },
       onError: (message) => emit({ type: 'error', code: 'agent_error', message: String(message) }),
       onDisconnect: (details) => {
         cleanup();
@@ -139,11 +143,14 @@ export async function startVoice(options = {}) {
   return {
     conversationId: conversation.getId(),
 
-    /** Typed fallback: counts as the user's own words, exactly like speech. */
+    /**
+     * Typed fallback: counts as the user's own words. A typed yes (the card's Send button)
+     * counts even if the spoken readback was cut short, because the card shows the details.
+     */
     sendText(text) {
       const t = cleanText(text, 300);
       if (!t || ended) return;
-      runtime.noteUserTurn(t);
+      runtime.noteUserTurn(t, { typed: true });
       conversation.sendUserMessage(t);
       emit({ type: 'transcript', role: 'user', text: t, final: true, typed: true });
     },

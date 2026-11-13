@@ -55,9 +55,9 @@ describe('session phases', () => {
 
 describe('captions', () => {
   it('keeps what was said, in order, with who said it', () => {
-    const view = after(...CONNECTED, { type: 'transcript', role: 'agent', text: 'Hello Malle' }, { type: 'transcript', role: 'user', text: 'My balance, please' });
+    const view = after(...CONNECTED, { type: 'transcript', role: 'agent', text: 'Hello Maria' }, { type: 'transcript', role: 'user', text: 'My balance, please' });
     expect(view.lines.map((l) => [l.role, l.text])).toEqual([
-      ['agent', 'Hello Malle'],
+      ['agent', 'Hello Maria'],
       ['user', 'My balance, please'],
     ]);
   });

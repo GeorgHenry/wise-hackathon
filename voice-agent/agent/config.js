@@ -3,8 +3,8 @@
 
 export const AGENT_NAME = 'Wise Voice (hackathon)';
 export const DEFAULT_LLM = 'claude-haiku-5-5';
-export const FIRST_MESSAGE =
-  "Hello {{user_name}}, it's Wise Voice. You can ask me about your balance, recent payments, or sending money. What would you like to do?";
+// Short on purpose: the prompt offers the choices if the user is unsure what to ask.
+export const FIRST_MESSAGE = 'Hi, {{user_name}}! What would you like to do today?';
 
 /**
  * @param {object} options

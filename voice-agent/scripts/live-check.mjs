@@ -6,7 +6,8 @@
 //
 //   npm run live-check
 //   npm run live-check -- --scenario path/to/scenario.json
-//       scenario: { "audio": "private" | "speaker", "turns": ["...", "..."], "expect_sent": 0 | 1 }
+//       scenario: { "audio": "private" | "speaker", "turns": ["...", "..."], "expect_sent": 0 | 1,
+//                   "confirm_turn": index of the turn that should send it (default: the first with "yes") }
 //
 // Hard limits: 8 user turns, 150 seconds, 20 tool calls. The signed URL is never printed.
 
@@ -74,7 +75,7 @@ ws.addEventListener('open', () => {
   sendJson({
     type: 'conversation_initiation_client_data',
     conversation_config_override: { conversation: { text_only: true } },
-    dynamic_variables: { user_name: 'Malle' },
+    dynamic_variables: { user_name: 'Maria' },
   });
 });
 
@@ -96,12 +97,18 @@ ws.addEventListener('message', async (message) => {
     case 'ping':
       sendJson({ type: 'pong', event_id: event.ping_event?.event_id });
       break;
-    case 'agent_response':
-      record({ kind: 'agent', text: event.agent_response_event?.agent_response });
+    case 'agent_response': {
+      const text = event.agent_response_event?.agent_response ?? '';
+      runtime.noteAgentText(text); // as in the browser: the yes-check needs the details said in full
+      record({ kind: 'agent', text });
       break;
-    case 'agent_response_correction':
-      record({ kind: 'fix', text: event.agent_response_correction_event?.corrected_agent_response });
+    }
+    case 'agent_response_correction': {
+      const fix = event.agent_response_correction_event ?? {};
+      runtime.noteAgentCorrection(fix.original_agent_response ?? '', fix.corrected_agent_response ?? '');
+      record({ kind: 'fix', text: fix.corrected_agent_response });
       break;
+    }
     case 'client_tool_call': {
       const call = event.client_tool_call ?? {};
       toolCalls += 1;
@@ -174,7 +181,7 @@ const balancesAfter = await bank.getBalances();
 const creditsAfter = await creditSnapshot(key);
 const sent = events.filter((e) => e.type === 'transfer_result' && e.outcome?.status === 'sent');
 const blocked = events.filter((e) => e.type === 'confirm_blocked');
-const yesTurnIndex = turns.findIndex((t) => /\byes\b/i.test(t));
+const yesTurnIndex = Number.isInteger(scenario.confirm_turn) ? scenario.confirm_turn : turns.findIndex((t) => /\byes\b/i.test(t));
 const firstSentAt = sent[0]?.at ?? null;
 const userTurnTimes = log.filter((l) => l.kind === 'user').map((l) => startedAt + l.t * 1000);
 

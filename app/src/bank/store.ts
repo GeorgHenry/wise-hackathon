@@ -16,6 +16,7 @@ import {
   type Recipient,
   type Transaction,
   type TransactionQuery,
+  type WiseUser,
 } from './types';
 
 export type TransferPhase = 'prepared' | 'approving' | 'sent' | 'declined' | 'cancelled' | 'failed';
@@ -92,6 +93,7 @@ export function createBankStore(options: BankStoreOptions = {}): BankStore {
   let held: Currency[];
   let recipients: Recipient[];
   let contacts: Contact[];
+  let wiseUsers: WiseUser[];
   let transactions: Transaction[];
   let audioPrivacy: AudioPrivacy;
   let currentTransferId: string | null;
@@ -111,6 +113,7 @@ export function createBankStore(options: BankStoreOptions = {}): BankStore {
     held = Object.keys(seed.balances) as Currency[];
     recipients = seed.recipients;
     contacts = seed.contacts;
+    wiseUsers = seed.wiseUsers;
     transactions = seed.transactions;
     audioPrivacy = 'private';
     currentTransferId = null;
@@ -213,9 +216,20 @@ export function createBankStore(options: BankStoreOptions = {}): BankStore {
       return contacts.filter((c) => matches(query, c.name)).map((c) => ({ ...c }));
     },
 
+    async findWiseUser(wisetag) {
+      const wanted = String(wisetag ?? '').toLowerCase().replace(/[^a-z0-9]/g, '');
+      const user = wanted ? wiseUsers.find((u) => u.wisetag === wanted) : undefined;
+      return user ? { ...user } : null;
+    },
+
     async listTransactions({ direction, counterparty, limit = 10 }: TransactionQuery = {}) {
-      activity = { kind: 'transactions', at: now().getTime(), direction, counterparty };
-      touch();
+      // "Has this person been paid before?" (the latest payment to one person) is a
+      // background check during a payment, not something to show the user.
+      const backgroundCheck = limit === 1 && direction === 'out' && Boolean(counterparty);
+      if (!backgroundCheck) {
+        activity = { kind: 'transactions', at: now().getTime(), direction, counterparty };
+        touch();
+      }
       const name = counterparty?.trim().toLowerCase();
       return transactions
         .filter((t) => !direction || t.direction === direction)
@@ -227,15 +241,16 @@ export function createBankStore(options: BankStoreOptions = {}): BankStore {
     async getQuote({ recipientId, amount, currency, amountIs }: QuoteRequest) {
       const saved = recipients.find((r) => r.id === recipientId);
       const contact = saved ? undefined : contacts.find((c) => c.id === recipientId);
-      const recipient = saved ?? contact;
+      const wiseUser = saved || contact ? undefined : wiseUsers.find((u) => u.id === recipientId);
+      const recipient = saved ?? contact ?? wiseUser;
       if (!recipient) throw new BankError('unknown_recipient', 'No saved recipient or contact with that id');
       if (contact && !contact.onWise) throw new BankError('not_on_wise', 'This contact does not use Wise');
       if (!(currency in RATES_FROM_EUR)) throw new BankError('unsupported_currency', 'That currency is not supported');
 
-      // A saved recipient is paid in their account's currency. A contact's Wise
-      // account takes whatever currency the user names.
+      // A saved recipient is paid in their account's currency. A Wise account (a
+      // contact's, or one found by Wisetag) takes whatever currency the user names.
       const targetCurrency = saved ? saved.currency : currency;
-      const mode = contact ? 'target' : (amountIs ?? (currency === targetCurrency ? 'target' : 'source'));
+      const mode = saved ? (amountIs ?? (currency === targetCurrency ? 'target' : 'source')) : 'target';
       const amountCents = toCents(amount);
       // Which balance pays: the one the user named, else the recipient's own
       // currency when the user holds enough of it (no conversion, no fee), else euros.
@@ -267,7 +282,8 @@ export function createBankStore(options: BankStoreOptions = {}): BankStore {
         id: `qt_${nextId++}`,
         recipientId,
         recipientName: recipient.name,
-        recipientKind: contact ? 'contact' : 'saved',
+        recipientKind: contact ? 'contact' : wiseUser ? 'wise_user' : 'saved',
+        ...(wiseUser ? { recipientWisetag: wiseUser.wisetag } : {}),
         sourceAmount: fromCents(sourceCents),
         sourceCurrency,
         targetAmount: fromCents(targetCents),
@@ -275,7 +291,7 @@ export function createBankStore(options: BankStoreOptions = {}): BankStore {
         rate: round4(rate),
         fee: fromCents(feeCents),
         feeCurrency: sourceCurrency,
-        arrival: contact ? 'in seconds' : 'today',
+        arrival: saved ? 'today' : 'in seconds',
         expiresAt: new Date(now().getTime() + QUOTE_LIFETIME_MS).toISOString(),
       };
       quotes.set(quote.id, quote);

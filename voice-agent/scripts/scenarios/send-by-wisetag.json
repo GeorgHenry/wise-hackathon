@@ -1,0 +1,11 @@
+{
+  "audio": "private",
+  "expect_sent": 1,
+  "confirm_turn": 2,
+  "turns": [
+    "Send 20 euros to Wisetag john j 1999.",
+    "Yes, that's the person.",
+    "Yeah, I got the gist. Send the money now.",
+    "That's all, thank you. Goodbye."
+  ]
+}

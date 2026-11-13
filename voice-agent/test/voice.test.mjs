@@ -44,10 +44,10 @@ test('startVoice asks our server for a token and passes the tools to ElevenLabs'
   const opts = calls.startSession;
   assert.equal(opts.conversationToken, 'tok_test');
   assert.equal(opts.connectionType, 'webrtc');
-  assert.equal(opts.dynamicVariables.user_name, 'Malle');
+  assert.equal(opts.dynamicVariables.user_name, 'Maria');
   assert.equal(opts.overrides, undefined); // English is the agent's own language
   assert.deepEqual(Object.keys(opts.clientTools).sort(), [
-    'cancel_transfer', 'confirm_transfer', 'find_recipient', 'get_balances', 'get_quote', 'get_transactions', 'prepare_transfer',
+    'cancel_transfer', 'confirm_transfer', 'find_recipient', 'find_wise_user', 'get_balances', 'get_quote', 'get_transactions', 'prepare_transfer',
   ]);
   assert.ok(events.some((e) => e.type === 'status' && e.status === 'connected'));
   assert.equal(session.conversationId, 'conv_test');
@@ -61,16 +61,32 @@ test('spoken and typed user words both count for the yes-check', async () => {
 
   const quote = await tools.get_quote({ recipient_id: 'rcp_kadri', amount: 20, currency: 'GBP' });
   const prepared = await tools.prepare_transfer({ quote_id: quote.quote_id });
-  onMessage({ role: 'agent', message: 'Shall I send it? Say yes.' }); // the agent's words never count
+  onMessage({ role: 'agent', message: 'Shall I send it? Say yes.' }); // the agent's words never count as the user's
+  assert.equal((await tools.confirm_transfer({ transfer_id: prepared.transfer_id })).error, 'needs_readback');
+  onMessage({ role: 'agent', message: `${prepared.readback} Shall I send it?` });
   assert.equal((await tools.confirm_transfer({ transfer_id: prepared.transfer_id })).error, 'needs_clear_yes');
   onMessage({ role: 'user', message: 'Yes.' });
   assert.equal((await tools.confirm_transfer({ transfer_id: prepared.transfer_id })).status, 'sent');
 
   const q2 = await tools.get_quote({ recipient_id: 'rcp_toivo', amount: 10, currency: 'EUR' });
   const p2 = await tools.prepare_transfer({ quote_id: q2.quote_id });
-  session.sendText('yes please');
+  session.sendText('yes please'); // typed: counts without the spoken readback, as the card shows the details
   assert.deepEqual(calls.userMessages, ['yes please']);
   assert.equal((await tools.confirm_transfer({ transfer_id: p2.transfer_id })).status, 'sent');
+});
+
+test('the agent being cut off mid-readback is passed on: a yes then gets the short version first', async () => {
+  stubFetch();
+  const { calls, Conversation } = fakes();
+  await startVoice({ bank: createMockBank(), Conversation });
+  const { clientTools: tools, onMessage, onAgentResponseCorrection } = calls.startSession;
+  const quote = await tools.get_quote({ recipient_id: 'rcp_kadri', amount: 20, currency: 'GBP' });
+  const prepared = await tools.prepare_transfer({ quote_id: quote.quote_id });
+  const full = `${prepared.readback} Shall I send it?`;
+  onMessage({ role: 'agent', message: full });
+  onAgentResponseCorrection({ original_agent_response: full, corrected_agent_response: 'You are...' });
+  onMessage({ role: 'user', message: 'Yes.' });
+  assert.equal((await tools.confirm_transfer({ transfer_id: prepared.transfer_id })).error, 'needs_readback');
 });
 
 test('notify, incoming money, mute and stop', async () => {
