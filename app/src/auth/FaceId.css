@@ -1,0 +1,105 @@
+.faceid {
+  position: relative;
+  display: inline-grid;
+  color: var(--blue);
+  transition: color 0.2s var(--ease);
+}
+
+.faceid--success {
+  color: var(--green);
+}
+
+.faceid--fail {
+  color: var(--danger);
+  animation: faceid-shake 0.4s var(--ease);
+}
+
+.faceid--scanning svg {
+  animation: faceid-pulse 1.1s ease-in-out infinite;
+}
+
+.faceid__beam {
+  position: absolute;
+  left: 16%;
+  right: 16%;
+  top: 18%;
+  height: 3px;
+  border-radius: 2px;
+  background: currentColor;
+  opacity: 0.8;
+  animation: faceid-sweep 1.1s ease-in-out infinite alternate;
+}
+
+.faceid__check {
+  stroke-dasharray: 60;
+  stroke-dashoffset: 60;
+  animation: faceid-draw 0.35s var(--ease) forwards;
+}
+
+@keyframes faceid-pulse {
+  50% {
+    opacity: 0.55;
+  }
+}
+
+@keyframes faceid-sweep {
+  to {
+    top: 80%;
+  }
+}
+
+@keyframes faceid-draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes faceid-shake {
+  25% {
+    transform: translateX(-6px);
+  }
+
+  75% {
+    transform: translateX(6px);
+  }
+}
+
+/* The sheet that asks for Face ID before a payment. */
+.approval {
+  position: absolute;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: flex-end;
+  background: rgba(0, 0, 0, 0.6);
+  animation: fade 0.2s ease-out;
+}
+
+.approval__sheet {
+  display: grid;
+  justify-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 32px 24px calc(40px + env(safe-area-inset-bottom));
+  border-radius: 32px 32px 0 0;
+  background: var(--surface);
+  text-align: center;
+  animation: rise 0.25s var(--ease);
+}
+
+.approval__title {
+  margin-top: 8px;
+  font-size: 22px;
+  font-weight: 650;
+}
+
+.approval__amount {
+  font-size: 17px;
+  font-variant-numeric: tabular-nums;
+}
+
+@keyframes fade {
+  from {
+    opacity: 0;
+  }
+}

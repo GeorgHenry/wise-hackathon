@@ -1,0 +1,109 @@
+.flag {
+  display: block;
+  flex: none;
+  border-radius: 50%;
+}
+
+.avatar {
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--surface);
+  font-size: 16px;
+  font-weight: 650;
+}
+
+.avatar--lg {
+  width: 56px;
+  height: 56px;
+  border: 1px solid var(--line-strong);
+  background: transparent;
+  font-size: 20px;
+}
+
+.avatar__flag {
+  position: absolute;
+  right: -4px;
+  bottom: -4px;
+  border-radius: 50%;
+  box-shadow: 0 0 0 2px var(--bg);
+}
+
+.tx,
+.link-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-height: 76px;
+  width: 100%;
+  text-align: left;
+}
+
+.tx {
+  animation: rise 0.35s var(--ease);
+}
+
+.tx__icon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 52px;
+  height: 52px;
+  border: 1px solid var(--line-strong);
+  border-radius: 50%;
+}
+
+.tx__main {
+  display: grid;
+  flex: 1;
+  min-width: 0;
+  gap: 2px;
+}
+
+.tx__title {
+  overflow: hidden;
+  font-size: 17px;
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tx__sub {
+  overflow: hidden;
+  color: var(--text-2);
+  font-size: 15px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tx__sub--wrap {
+  white-space: normal;
+}
+
+.tx__amount {
+  font-size: 17px;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.tx__amount--in {
+  color: var(--green);
+}
+
+.link-row {
+  padding: 8px 0;
+}
+
+.link-row .tx__title {
+  white-space: normal;
+}
+
+.link-row__chevron {
+  flex: none;
+  color: var(--green);
+}

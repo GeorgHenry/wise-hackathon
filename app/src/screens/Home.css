@@ -1,0 +1,92 @@
+.home__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 0 20px;
+}
+
+.home__label {
+  color: var(--text-2);
+  font-size: 17px;
+}
+
+.home__total-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 4px;
+}
+
+.home__total {
+  font-size: 30px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+.home__eye {
+  width: 48px;
+  height: 48px;
+  color: var(--green);
+}
+
+.home__actions {
+  display: flex;
+  gap: 8px;
+  margin: 16px 0 24px;
+}
+
+.account {
+  padding: 8px;
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+}
+
+.account__tab {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 60px;
+  padding: 0 20px;
+  border-radius: 22px 22px 8px 8px;
+  background: var(--green);
+  color: var(--forest);
+  font-size: 17px;
+  font-weight: 650;
+}
+
+.account__body {
+  padding: 20px 12px 12px;
+}
+
+.account__name {
+  font-size: 24px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+
+.account__currencies {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px 12px;
+  margin: 20px 0;
+}
+
+.account__currency {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 17px;
+  font-variant-numeric: tabular-nums;
+}
+
+.account__details {
+  min-height: 48px;
+  padding: 0 16px;
+  background: var(--surface-2);
+  font-size: 16px;
+}
+
+.home__section {
+  margin: 32px 0 8px;
+}

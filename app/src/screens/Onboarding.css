@@ -1,0 +1,178 @@
+.onboarding,
+.lock {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+  padding: 8px 20px calc(28px + env(safe-area-inset-bottom));
+}
+
+.onboarding__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 48px;
+}
+
+.onboarding__dots {
+  display: flex;
+  gap: 8px;
+}
+
+.onboarding__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--surface-2);
+}
+
+.onboarding__dot--on {
+  width: 24px;
+  border-radius: 4px;
+  background: var(--green);
+}
+
+.onboarding__body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding-top: 32px;
+}
+
+.onboarding__body--centre {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  padding-top: 0;
+  text-align: center;
+}
+
+.onboarding__lead {
+  max-width: 320px;
+  color: var(--text-2);
+  font-size: 18px;
+  line-height: 1.45;
+}
+
+.onboarding__actions {
+  display: grid;
+  gap: 12px;
+  padding-top: 16px;
+}
+
+/* Wise sets its big headlines in heavy capitals. The text stays sentence case
+   in the markup, so a screen reader reads it normally. */
+.display {
+  font-size: 40px;
+  line-height: 0.98;
+  font-weight: 900;
+  letter-spacing: -0.03em;
+  text-transform: uppercase;
+}
+
+.hero-mic {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 136px;
+  height: 136px;
+  margin-bottom: 12px;
+  border-radius: 50%;
+  background: var(--green);
+  color: var(--forest);
+}
+
+.hero-mic::before,
+.hero-mic::after {
+  content: '';
+  position: absolute;
+  inset: -16px;
+  border: 2px solid var(--green);
+  border-radius: 50%;
+  opacity: 0.35;
+  animation: ring 2.4s ease-out infinite;
+}
+
+.hero-mic::after {
+  animation-delay: 1.2s;
+}
+
+.hero-mic--quiet::before,
+.hero-mic--quiet::after {
+  animation: none;
+  opacity: 0.2;
+}
+
+@keyframes ring {
+  from {
+    transform: scale(0.9);
+    opacity: 0.5;
+  }
+
+  to {
+    transform: scale(1.35);
+    opacity: 0;
+  }
+}
+
+.abilities {
+  display: grid;
+  gap: 28px;
+  margin-top: 32px;
+}
+
+.ability {
+  display: flex;
+  gap: 16px;
+}
+
+.ability__icon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: var(--forest);
+  color: var(--green);
+}
+
+.ability__title {
+  display: block;
+  font-size: 18px;
+  font-weight: 650;
+}
+
+.ability__text {
+  display: block;
+  margin-top: 4px;
+  color: var(--text-2);
+  font-size: 16px;
+  line-height: 1.4;
+}
+
+/* ---------- Lock ---------- */
+
+.lock__centre {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  text-align: center;
+}
+
+.lock__title {
+  margin-top: 12px;
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.lock .tag {
+  align-self: flex-start;
+  margin-top: 12px;
+}
