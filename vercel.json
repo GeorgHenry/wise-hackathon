@@ -1,7 +1,7 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": null,
-  "installCommand": "npm ci --prefix voice-agent && npm ci --prefix app",
+  "installCommand": "npm ci --prefix voice-agent && npm install --prefix app --no-audit --no-fund",
   "buildCommand": "npm run build --prefix app",
   "outputDirectory": "app/dist",
   "rewrites": [
