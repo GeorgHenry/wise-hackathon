@@ -1,0 +1,124 @@
+.tab__title {
+  padding: 60px 0 20px;
+}
+
+.tab__hint {
+  margin: 12px 0 8px;
+  font-size: 15px;
+}
+
+.tab__empty {
+  padding: 40px 0;
+  color: var(--text-2);
+  text-align: center;
+}
+
+.tab__group {
+  margin: 32px 0 4px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--line);
+  color: var(--text-2);
+  font-size: 16px;
+  font-weight: 500;
+}
+
+.search {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: 52px;
+  padding: 0 16px;
+  border-radius: 26px;
+  background: var(--surface);
+  color: var(--text-2);
+}
+
+.search:focus-within {
+  outline: 2px solid var(--green);
+  outline-offset: 2px;
+}
+
+.search input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: none;
+  color: var(--text);
+  font-size: 17px;
+}
+
+.search input::placeholder {
+  color: var(--text-3);
+}
+
+.card-art {
+  position: relative;
+  aspect-ratio: 1.586;
+  border-radius: 20px;
+  background: var(--green);
+  color: var(--forest);
+}
+
+.card-art__name {
+  position: absolute;
+  top: 20px;
+  right: 24px;
+  font-size: 26px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+}
+
+.card-art__chip {
+  position: absolute;
+  top: 42%;
+  left: 28px;
+  width: 44px;
+  height: 34px;
+  border-radius: 8px;
+  background: #e9e3c8;
+}
+
+.card-art__kind {
+  position: absolute;
+  right: 24px;
+  bottom: 20px;
+  font-size: 15px;
+  font-weight: 650;
+}
+
+.card-caption {
+  margin: 20px 0;
+  font-size: 18px;
+  font-weight: 650;
+  text-align: center;
+}
+
+.card-caption .muted {
+  margin-right: 12px;
+  font-weight: 400;
+}
+
+.card-actions {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+}
+
+.card-action {
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  color: var(--green);
+  font-size: 15px;
+  font-weight: 650;
+}
+
+.card-action__icon {
+  display: grid;
+  place-items: center;
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: var(--green);
+  color: var(--forest);
+}

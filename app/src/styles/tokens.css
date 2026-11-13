@@ -1,0 +1,32 @@
+/* Colours and type for the dark Wise-style theme. Values were picked by eye
+   from the user's screenshots; they are not Wise's published tokens. */
+:root {
+  --page: #0a0c09;
+  --bg: #121511;
+  --bg-raised: #1b1e1a;
+  --surface: #262a25;
+  --surface-2: #31362f;
+  --line: rgba(255, 255, 255, 0.1);
+  --line-strong: rgba(255, 255, 255, 0.22);
+
+  --text: #f1f3ee;
+  --text-2: #b9beb4;
+  --text-3: #8f958a;
+
+  --green: #9fe870;
+  --green-press: #8bd95a;
+  --forest: #163300;
+  --forest-2: #1f420a;
+
+  --danger: #ff8a80;
+  --danger-bg: #3b1613;
+  --warn: #ffd166;
+  --blue: #4aa3ff;
+
+  --font: 'Inter Variable', Inter, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+
+  --radius-lg: 28px;
+  --radius-md: 20px;
+  --radius-sm: 12px;
+  --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+}
