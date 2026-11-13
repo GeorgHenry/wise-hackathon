@@ -369,6 +369,12 @@ describe('what the screens see', () => {
     expect(store.getSnapshot().activity).toMatchObject({ kind: 'balances' });
   });
 
+  it('shows no card for a background check of whether one person was paid before', async () => {
+    const store = makeStore();
+    expect(await store.listTransactions({ direction: 'out', counterparty: 'Martin Saar', limit: 1 })).toEqual([]);
+    expect(store.getSnapshot().activity).toBeNull();
+  });
+
   it('notes which payments the agent looked at', async () => {
     const store = makeStore();
     await store.listTransactions({ direction: 'in', counterparty: 'Kadri' });
@@ -456,5 +462,52 @@ describe('phone contacts', () => {
     ]);
     const [newest] = await store.listTransactions({ direction: 'out', counterparty: 'Martin Saar' });
     expect(newest).toMatchObject({ counterparty: 'Martin Saar', amount: 20, currency: 'USD' });
+  });
+});
+
+describe('Wise users found by Wisetag', () => {
+  it('finds a Wise user by their exact Wisetag', async () => {
+    expect(await makeStore().findWiseUser('johnj1999')).toEqual({ id: 'wu_john', name: 'John Jensen', wisetag: 'johnj1999' });
+  });
+
+  it('ignores an @, capitals and the spaces speech recognition puts in', async () => {
+    const store = makeStore();
+    expect((await store.findWiseUser('@JohnJ1999'))?.id).toBe('wu_john');
+    expect((await store.findWiseUser('john j 1999'))?.id).toBe('wu_john');
+  });
+
+  it('finds nobody for a Wisetag that does not exist', async () => {
+    expect(await makeStore().findWiseUser('johnj1998')).toBeNull();
+    expect(await makeStore().findWiseUser('')).toBeNull();
+  });
+
+  it('quotes a Wise user in the currency the user named, arriving in seconds', async () => {
+    const quote = await makeStore().getQuote({ recipientId: 'wu_john', amount: 20, currency: 'EUR', amountIs: 'target' });
+    expect(quote).toMatchObject({
+      recipientName: 'John Jensen',
+      recipientKind: 'wise_user',
+      recipientWisetag: 'johnj1999',
+      targetAmount: 20,
+      targetCurrency: 'EUR',
+      sourceAmount: 20,
+      sourceCurrency: 'EUR',
+      fee: 0,
+      arrival: 'in seconds',
+    });
+  });
+
+  it('converts from euros for a currency she does not hold', async () => {
+    const quote = await makeStore().getQuote({ recipientId: 'wu_john', amount: 20, currency: 'USD', amountIs: 'target' });
+    expect(quote).toMatchObject({ targetAmount: 20, targetCurrency: 'USD', sourceAmount: 18.93, sourceCurrency: 'EUR', fee: 0.47 });
+  });
+
+  it('pays a Wise user after approval and lists the payment under their name', async () => {
+    const store = makeStore(approve);
+    const quote = await store.getQuote({ recipientId: 'wu_john', amount: 20, currency: 'EUR', amountIs: 'target' });
+    const transfer = await store.prepareTransfer(quote.id);
+    expect(await store.confirmTransfer(transfer.transferId)).toMatchObject({ status: 'sent' });
+    expect((await store.getBalances())[0]).toEqual({ currency: 'EUR', amount: 1820.25 });
+    const [newest] = await store.listTransactions({ direction: 'out', counterparty: 'John Jensen' });
+    expect(newest).toMatchObject({ counterparty: 'John Jensen', amount: 20, currency: 'EUR' });
   });
 });

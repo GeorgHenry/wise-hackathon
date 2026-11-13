@@ -1,6 +1,7 @@
 import { ArrowUp, Headphones, Keyboard, Volume2, X } from 'lucide-react';
 import { type FormEvent, type KeyboardEvent, type ReactNode, useEffect, useRef, useState } from 'react';
 import type { BankSnapshot, BankStore } from '../bank/store';
+import type { Currency, PreparedTransfer } from '../bank/types';
 import { useBank } from '../bank/useBank';
 import { ArrivedCard, BalanceCard, PaymentsCard, PrivateAudioCard, TransferCard } from '../components/VoiceCards';
 import { VoiceOrb } from '../components/VoiceOrb';
@@ -18,7 +19,13 @@ const PHASE_LABEL: Record<Phase, string> = {
 };
 
 const OPENING_PHRASES = ["What's my balance?", 'Send Oskar 30 pounds', 'Transfer 20 dollars to Martin', "Did Kadri's money arrive?"];
-const CONFIRM_PHRASES = ['Yes, send it', 'Make it 40 pounds', 'No, cancel'];
+const CURRENCY_WORD: Record<Currency, string> = { EUR: 'euros', GBP: 'pounds', USD: 'dollars' };
+
+/** The answers to a read-back. The change offered follows the payment on the card: 30 pounds offers "Make it 40 pounds". */
+function confirmPhrases(transfer: PreparedTransfer): string[] {
+  const bigger = Math.round(transfer.targetAmount) + 10;
+  return ['Yes, send it', `Make it ${bigger} ${CURRENCY_WORD[transfer.targetCurrency]}`, 'No, cancel'];
+}
 const FOCUSABLE = 'button:not([disabled]), input:not([disabled])';
 
 interface VoiceSheetProps {
@@ -189,9 +196,10 @@ export function VoiceSheet({ store, voice, onClose, onUseScripted }: VoiceSheetP
 
         {ended ? (
           <div className="sheet__ended" role="alert">
-            <p>{view.error?.message ?? 'The session has ended.'}</p>
+            <p>{view.error?.message ?? 'The voice session has ended.'}</p>
             <div className="vcard__actions">
-              {live && view.error && (
+              {/* Live voice can end for reasons the app never hears, such as the voice service being out of credits. */}
+              {live && (
                 <button type="button" className="btn btn--neutral" onClick={onUseScripted}>
                   Continue without voice
                 </button>
@@ -229,7 +237,7 @@ export function VoiceSheet({ store, voice, onClose, onUseScripted }: VoiceSheetP
               {!live && (
                 // A new set of phrases starts scrolled to its first, so "Yes, send it" is in view.
                 <ul key={waitingForYes ? 'confirm' : 'opening'} className={waitingForYes ? 'chips chips--confirm' : 'chips'} aria-label="Things to say">
-                  {(waitingForYes ? CONFIRM_PHRASES : OPENING_PHRASES).map((phrase) => (
+                  {(waitingForYes && bank.transfer ? confirmPhrases(bank.transfer.transfer) : OPENING_PHRASES).map((phrase) => (
                     <li key={phrase}>
                       <button type="button" className="chip" onClick={() => voice.sendText(phrase)}>
                         {phrase}

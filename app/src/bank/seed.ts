@@ -1,5 +1,5 @@
 import { localDate } from './money';
-import type { Contact, Currency, Recipient, Transaction } from './types';
+import type { Contact, Currency, Recipient, Transaction, WiseUser } from './types';
 
 // Everything in this file is invented for the demo: the person, the people she
 // pays, her phone contacts, the balances, the exchange rates and the fee. None of it is Wise's data
@@ -12,13 +12,16 @@ export const FEE_FIXED = 0.39;
 export const FEE_PERCENT = 0.0045;
 export const QUOTE_LIFETIME_MS = 15 * 60 * 1000;
 
-export const ACCOUNT_HOLDER = { name: 'Malle Kask', firstName: 'Malle', initials: 'MK' } as const;
+// Renamed from Malle to Maria at the user's request on 2026-11-13.
+export const ACCOUNT_HOLDER = { name: 'Maria Kask', firstName: 'Maria', initials: 'MK' } as const;
 
 export interface Seed {
   /** Whole cents for each currency she holds. */
   balances: Partial<Record<Currency, number>>;
   recipients: Recipient[];
   contacts: Contact[];
+  /** People on Wise she has never saved, found only by their Wisetag. */
+  wiseUsers: WiseUser[];
   /** Newest first. */
   transactions: Transaction[];
 }
@@ -41,6 +44,7 @@ export function createSeed(today: Date): Seed {
       { id: 'ct_martin', name: 'Martin Saar', onWise: true },
       { id: 'ct_mari', name: 'Mari Lepp', onWise: false },
     ],
+    wiseUsers: [{ id: 'wu_john', name: 'John Jensen', wisetag: 'johnj1999' }],
     transactions: [
       { id: 'tx_seed_5', direction: 'in', counterparty: 'Pension payment', amount: 742.1, currency: 'EUR', date: daysAgo(1), status: 'completed' },
       { id: 'tx_seed_4', direction: 'out', counterparty: 'Toivo Kask', amount: 50, currency: 'EUR', date: daysAgo(4), status: 'completed' },

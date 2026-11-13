@@ -1,5 +1,5 @@
 import { speakDate, speakMoney } from '../bank/money';
-import type { Contact, Currency, PreparedTransfer, Recipient } from '../bank/types';
+import type { Contact, Currency, PreparedTransfer, Recipient, WiseUser } from '../bank/types';
 import { parseIntent } from './intent';
 import { pauseFor } from './speech';
 import type { StartVoiceOptions, VoiceEvent, VoiceSession } from './types';
@@ -28,13 +28,16 @@ interface Payee {
   id: string;
   name: string;
   nickname?: string;
-  /** A saved recipient's account currency. A contact takes whatever currency is named. */
+  /** A saved recipient's account currency. A Wise account takes whatever currency is named. */
   currency?: Currency;
   contact?: Contact;
+  /** Found by this Wisetag. */
+  wisetag?: string;
 }
 
 const fromRecipient = (r: Recipient): Payee => ({ id: r.id, name: r.name, nickname: r.nickname, currency: r.currency });
 const fromContact = (c: Contact): Payee => ({ id: c.id, name: c.name, contact: c });
+const fromWiseUser = (u: WiseUser): Payee => ({ id: u.id, name: u.name, wisetag: u.wisetag });
 
 interface Draft {
   recipient?: Payee;
@@ -59,13 +62,13 @@ function mentioned(text: string, people: Payee[]): Payee | undefined {
   });
 }
 
-/** `paidBefore` is given for a phone contact, so the user hears whether this is a first payment. */
+/** `paidBefore` is given for a Wise account (a contact's, or one found by Wisetag), so the user hears whether this is a first payment. */
 function readback(t: PreparedTransfer, paidBefore?: boolean): string {
   const fee = t.fee > 0 ? `The fee is ${speakMoney(t.fee, t.feeCurrency)}.` : 'There is no fee.';
-  const to =
-    t.recipientKind === 'contact'
-      ? `${t.recipientName}'s Wise account. ${t.recipientName} is in your phone contacts, and you ${paidBefore ? 'have' : "haven't"} paid them before.`
-      : `${t.recipientName}.`;
+  const before = `you ${paidBefore ? 'have' : "haven't"} paid them before`;
+  let to = `${t.recipientName}.`;
+  if (t.recipientKind === 'contact') to = `${t.recipientName}'s Wise account. ${t.recipientName} is in your phone contacts, and ${before}.`;
+  if (t.recipientKind === 'wise_user') to = `${t.recipientName}'s Wise account, found by the Wisetag ${t.recipientWisetag}, and ${before}.`;
   return (
     `You are sending ${speakMoney(t.targetAmount, t.targetCurrency)} to ${to} ${fee} ` +
     `You pay ${speakMoney(t.sourceAmount, t.sourceCurrency)} in total. It should arrive ${t.arrival}.`
@@ -167,9 +170,11 @@ export async function startScriptedVoice(options: ScriptedOptions): Promise<Voic
     const namedCurrency = draft.currency ?? recipient.currency ?? 'EUR';
     if (wanted > VOICE_LIMIT) return say(OVER_LIMIT);
 
+    // A Wise account (a contact's, or one found by Wisetag) takes any currency, and a first payment is worth saying.
+    const wiseAccount = Boolean(recipient.contact || recipient.wisetag);
     let paidBefore: boolean | undefined;
     try {
-      if (recipient.contact) {
+      if (wiseAccount) {
         const earlier = await tool('get_transactions', () => bank.listTransactions({ direction: 'out', counterparty: recipient.name, limit: 1 }));
         paidBefore = earlier.length > 0;
       }
@@ -180,7 +185,7 @@ export async function startScriptedVoice(options: ScriptedOptions): Promise<Voic
           currency: namedCurrency,
           // Said in the recipient's currency (or to a contact, who takes any): that is what arrives.
           // Otherwise it is what the user pays.
-          amountIs: recipient.contact || namedCurrency === recipient.currency ? 'target' : 'source',
+          amountIs: wiseAccount || namedCurrency === recipient.currency ? 'target' : 'source',
         }),
       );
       if (quote.sourceAmount > VOICE_LIMIT || quote.targetAmount > VOICE_LIMIT) return say(OVER_LIMIT);
@@ -227,8 +232,16 @@ export async function startScriptedVoice(options: ScriptedOptions): Promise<Voic
         return balance();
       case 'incoming':
         return incoming(named);
-      case 'send':
-        return send(people, named, intent.amount, intent.currency);
+      case 'send': {
+        if (!intent.wisetag) return send(people, named, intent.amount, intent.currency);
+        const tag = intent.wisetag;
+        const user = await tool('find_recipient', () => bank.findWiseUser(tag));
+        if (!user) {
+          draft = null;
+          return say(`There is no Wise account with the Wisetag ${tag}. Check the spelling with them. Nothing was sent.`);
+        }
+        return send(people, fromWiseUser(user), intent.amount, intent.currency);
+      }
       case 'amount':
         return pending || draft ? send(people, named, intent.amount, intent.currency) : say(HELP);
       case 'yes':
@@ -253,7 +266,8 @@ export async function startScriptedVoice(options: ScriptedOptions): Promise<Voic
 
   emit({ type: 'status', status: 'connecting' });
   emit({ type: 'status', status: 'connected' });
-  enqueue(() => say(`Hello ${userName}, it's Wise Voice. You can ask me about your balance, recent payments, or sending money. What would you like to do?`));
+  // The same greeting as the live agent (voice-agent/agent/config.js).
+  enqueue(() => say(`Hi, ${userName}! What would you like to do today?`));
 
   return {
     sendText(text) {

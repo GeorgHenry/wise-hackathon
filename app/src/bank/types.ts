@@ -38,6 +38,14 @@ export interface Contact {
   phone?: string;
 }
 
+/** Someone with a Wise account, found by their Wisetag (for example @johnj1999). Paid straight to that account. */
+export interface WiseUser {
+  id: string;
+  name: string;
+  /** Lower case, without the @. */
+  wisetag: string;
+}
+
 export interface Transaction {
   id: string;
   direction: Direction;
@@ -62,8 +70,10 @@ export interface Quote {
   id: string;
   recipientId: string;
   recipientName: string;
-  /** A saved recipient, or a phone contact paid through Wise. */
-  recipientKind: 'saved' | 'contact';
+  /** A saved recipient, a phone contact on Wise, or a Wise user found by their Wisetag. */
+  recipientKind: 'saved' | 'contact' | 'wise_user';
+  /** For a Wise user: the Wisetag they were found by, without the @. */
+  recipientWisetag?: string;
   /** Everything that leaves the account, fee included. */
   sourceAmount: number;
   sourceCurrency: Currency;
@@ -100,6 +110,15 @@ export interface Bank {
   listRecipients(query?: string): Promise<Recipient[]>;
   /** The phone's contacts, including those who do not use Wise. */
   findContacts(query?: string): Promise<Contact[]>;
+  /**
+   * The Wise user with exactly this Wisetag, or null. An @, capitals, spaces and
+   * punctuation are ignored, so "@JohnJ1999" and "john j 1999" both find johnj1999.
+   */
+  findWiseUser(wisetag: string): Promise<WiseUser | null>;
+  /**
+   * Payments, newest first. The latest payment to one person (limit 1, direction 'out',
+   * a counterparty) counts as a background "paid before?" check and shows no card.
+   */
   listTransactions(query?: TransactionQuery): Promise<Transaction[]>;
   getQuote(request: QuoteRequest): Promise<Quote>;
   /** Nothing moves. */

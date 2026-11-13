@@ -35,7 +35,7 @@ document covers everything outside that folder.
 | "Receive" | Hearing that money arrived and from whom | Not payment requests |
 | Recipients | Voice pays saved people only | Never dictate account numbers by voice |
 | Face ID | An on-screen animation, with a demo switch to make it fail | A browser cannot call the real Face ID without extra setup |
-| Persona | Malle, with invented people Kadri, Oskar and Toivo | Proposed earlier; the user has not confirmed her, so it lives in one file (`seed.ts`) |
+| Persona | Maria Kask (called Malle until the user renamed her on 2026-11-13), with invented people Kadri, Oskar and Toivo | Proposed earlier; the user has not confirmed her, so it lives in one file (`seed.ts`) |
 
 Out of scope: real Wise APIs or accounts, real biometrics, a native app,
 Estonian, adding recipients by voice, payment requests, deployment.
@@ -89,6 +89,7 @@ JSON. Failures reject with an `Error` whose `code` is `unknown_recipient`,
 getBalances()                -> [{ currency: 'EUR'|'GBP', amount }]
 listRecipients(query?)       -> [{ id, name, nickname?, currency, detail, verified }]
 findContacts(query?)         -> [{ id, name, onWise, phone? }]   phone contacts, also those not on Wise
+findWiseUser(wisetag)        -> { id, name, wisetag } | null    exact Wisetag; ignores @, capitals, spaces
 listTransactions({ direction?, counterparty?, limit? })
                              -> [{ id, direction: 'in'|'out', counterparty, amount, currency, date, status }]
 getQuote({ recipientId, amount, currency, amountIs: 'target'|'source' })
@@ -165,6 +166,16 @@ scripted agent used to be the default and spoke with the browser's own voice.)
 Voice can also pay a phone contact who uses Wise (`findContacts`). The contact
 receives the currency the user names, including US dollars, which are sent but
 not held. A contact who is not on Wise is refused.
+
+Voice can also pay someone found by their Wisetag (`findWiseUser`), the same
+way as a phone contact: any currency, arriving in seconds. The user asked for
+this by voice only. Paying a new person by voice is where scams start, so the
+read-back and the confirm card say when it is a first payment, and the voice
+agent spells the Wisetag back with the owner's name and caps a first payment
+by Wisetag at 200.
+
+`listTransactions` with `limit: 1`, `direction: 'out'` and a `counterparty` is
+the agents' background "paid before?" check, so it shows no payments card.
 
 Cards on the voice sheet (balance, confirm, Face ID, receipt) are drawn from
 the bank store, not from agent events, so they are right in both modes and

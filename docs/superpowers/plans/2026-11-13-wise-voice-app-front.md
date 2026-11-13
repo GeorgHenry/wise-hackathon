@@ -34,7 +34,7 @@ app/src/styles/tokens.css        colours, type, spacing
 app/src/styles/base.css          reset, phone frame, shared controls
 app/src/bank/types.ts            the contract and data types
 app/src/bank/money.ts            cents maths, formatting, spoken money and dates
-app/src/bank/seed.ts             Malle's invented account, rate and fee
+app/src/bank/seed.ts             Maria's invented account, rate and fee
 app/src/bank/store.ts            createBankStore(): the contract plus UI-facing snapshot
 app/src/bank/useBank.ts          React binding
 app/src/voice/types.ts           VoiceEvent, VoiceSession, StartVoice
