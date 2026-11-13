@@ -1,0 +1,22 @@
+{
+  "name": "wise-voice-agent",
+  "private": true,
+  "type": "module",
+  "description": "ElevenLabs voice agent for the Wise hackathon (voice-first banking).",
+  "engines": {
+    "node": ">=22"
+  },
+  "dependencies": {
+    "@elevenlabs/client": "1.32.1"
+  },
+  "devDependencies": {
+    "esbuild": "0.28.2"
+  },
+  "scripts": {
+    "test": "node --test test/*.test.mjs",
+    "provision": "node scripts/provision.mjs",
+    "server": "node server/server.mjs",
+    "demo": "node scripts/build-vendor.mjs && node server/server.mjs",
+    "live-check": "node scripts/live-check.mjs"
+  }
+}

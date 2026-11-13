@@ -1,0 +1,4 @@
+node_modules/
+web/vendor/
+.elevenlabs-state.json
+.live-check/
