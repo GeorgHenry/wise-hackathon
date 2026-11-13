@@ -1,7 +1,7 @@
 import { ChevronRight, Eye, EyeOff, Landmark } from 'lucide-react';
 import { useState } from 'react';
 import { formatMoney, formatSymbol, fromCents, toCents } from '../bank/money';
-import { ACCOUNT_HOLDER, RATE_EUR_GBP } from '../bank/seed';
+import { ACCOUNT_HOLDER, RATES_FROM_EUR } from '../bank/seed';
 import type { Balance } from '../bank/types';
 import { useBank } from '../bank/useBank';
 import { Flag } from '../components/Flag';
@@ -13,7 +13,7 @@ const HIDDEN = '••••••';
 
 /** Everything the user holds, in euros, at the demo's invented rate. For display only. */
 function totalInEuros(balances: Balance[]): number {
-  const cents = balances.reduce((sum, b) => sum + (b.currency === 'EUR' ? toCents(b.amount) : Math.round(toCents(b.amount) / RATE_EUR_GBP)), 0);
+  const cents = balances.reduce((sum, b) => sum + Math.round(toCents(b.amount) / RATES_FROM_EUR[b.currency]), 0);
   return fromCents(cents);
 }
 

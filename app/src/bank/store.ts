@@ -1,5 +1,5 @@
 import { fromCents, localDate, toCents } from './money';
-import { createSeed, FEE_FIXED, FEE_PERCENT, QUOTE_LIFETIME_MS, RATE_EUR_GBP } from './seed';
+import { createSeed, FEE_FIXED, FEE_PERCENT, QUOTE_LIFETIME_MS, RATES_FROM_EUR } from './seed';
 import {
   type AudioPrivacy,
   type Balance,
@@ -7,6 +7,7 @@ import {
   BankError,
   type BankEvent,
   type ConfirmResult,
+  type Contact,
   type Currency,
   type Direction,
   type PreparedTransfer,
@@ -42,6 +43,7 @@ export interface IncomingView {
 export interface BankSnapshot {
   balances: Balance[];
   recipients: Recipient[];
+  contacts: Contact[];
   transactions: Transaction[];
   audioPrivacy: AudioPrivacy;
   transfer: TransferView | null;
@@ -76,7 +78,6 @@ interface TransferEntry {
   resolve: ((result: ConfirmResult) => void) | null;
 }
 
-const CURRENCIES: readonly Currency[] = ['EUR', 'GBP'];
 const round4 = (n: number): number => Math.round(n * 10_000) / 10_000;
 
 /** With no approval step attached, nothing is ever approved. */
@@ -87,7 +88,10 @@ export function createBankStore(options: BankStoreOptions = {}): BankStore {
   let approver = options.approver ?? refuseEverything;
 
   let cents: Record<Currency, number>;
+  /** The currencies she holds a balance in. */
+  let held: Currency[];
   let recipients: Recipient[];
+  let contacts: Contact[];
   let transactions: Transaction[];
   let audioPrivacy: AudioPrivacy;
   let currentTransferId: string | null;
@@ -103,8 +107,10 @@ export function createBankStore(options: BankStoreOptions = {}): BankStore {
 
   function load(): void {
     const seed = createSeed(now());
-    cents = { ...seed.balances };
+    cents = { EUR: 0, GBP: 0, USD: 0, ...seed.balances };
+    held = Object.keys(seed.balances) as Currency[];
     recipients = seed.recipients;
+    contacts = seed.contacts;
     transactions = seed.transactions;
     audioPrivacy = 'private';
     currentTransferId = null;
@@ -115,7 +121,13 @@ export function createBankStore(options: BankStoreOptions = {}): BankStore {
   }
   load();
 
-  const balances = (): Balance[] => CURRENCIES.map((currency) => ({ currency, amount: fromCents(cents[currency]) }));
+  const balances = (): Balance[] => held.map((currency) => ({ currency, amount: fromCents(cents[currency]) }));
+
+  /** Every word of the query must appear in the text, whatever the case. */
+  const matches = (query: string | undefined, text: string): boolean => {
+    const haystack = text.toLowerCase();
+    return (query ?? '').trim().toLowerCase().split(/\s+/).filter(Boolean).every((word) => haystack.includes(word));
+  };
 
   /** The screens need a fresh snapshot. */
   function touch(): void {
@@ -152,6 +164,9 @@ export function createBankStore(options: BankStoreOptions = {}): BankStore {
     changed();
   }
 
+  const expired = (quote: Quote): boolean => Date.parse(quote.expiresAt) < now().getTime();
+  const PRICE_EXPIRED: ConfirmResult = { status: 'failed', reason: 'The price expired before the payment was approved' };
+
   function finishApproval(entry: TransferEntry, approved: boolean): void {
     if (entry.result) return; // cancelled while the approval step was showing
     if (!approved) {
@@ -159,6 +174,10 @@ export function createBankStore(options: BankStoreOptions = {}): BankStore {
       return;
     }
     const { transfer } = entry.view;
+    if (expired(transfer)) {
+      settle(entry, 'failed', PRICE_EXPIRED);
+      return;
+    }
     cents[transfer.sourceCurrency] -= toCents(transfer.sourceAmount);
     const transaction: Transaction = {
       id: `tx_${nextId++}`,
@@ -187,13 +206,11 @@ export function createBankStore(options: BankStoreOptions = {}): BankStore {
     },
 
     async listRecipients(query) {
-      const words = (query ?? '').trim().toLowerCase().split(/\s+/).filter(Boolean);
-      return recipients
-        .filter((r) => {
-          const haystack = `${r.name} ${r.nickname ?? ''}`.toLowerCase();
-          return words.every((word) => haystack.includes(word));
-        })
-        .map((r) => ({ ...r }));
+      return recipients.filter((r) => matches(query, `${r.name} ${r.nickname ?? ''}`)).map((r) => ({ ...r }));
+    },
+
+    async findContacts(query) {
+      return contacts.filter((c) => matches(query, c.name)).map((c) => ({ ...c }));
     },
 
     async listTransactions({ direction, counterparty, limit = 10 }: TransactionQuery = {}) {
@@ -208,18 +225,27 @@ export function createBankStore(options: BankStoreOptions = {}): BankStore {
     },
 
     async getQuote({ recipientId, amount, currency, amountIs }: QuoteRequest) {
-      const recipient = recipients.find((r) => r.id === recipientId);
-      if (!recipient) throw new BankError('unknown_recipient', 'No saved recipient with that id');
+      const saved = recipients.find((r) => r.id === recipientId);
+      const contact = saved ? undefined : contacts.find((c) => c.id === recipientId);
+      const recipient = saved ?? contact;
+      if (!recipient) throw new BankError('unknown_recipient', 'No saved recipient or contact with that id');
+      if (contact && !contact.onWise) throw new BankError('not_on_wise', 'This contact does not use Wise');
+      if (!(currency in RATES_FROM_EUR)) throw new BankError('unsupported_currency', 'That currency is not supported');
 
-      const targetCurrency = recipient.currency;
-      const mode = amountIs ?? (currency === targetCurrency ? 'target' : 'source');
-      // Paid from euros, unless the user named what they pay in another currency.
-      const sourceCurrency: Currency = mode === 'source' ? currency : 'EUR';
+      // A saved recipient is paid in their account's currency. A contact's Wise
+      // account takes whatever currency the user names.
+      const targetCurrency = saved ? saved.currency : currency;
+      const mode = contact ? 'target' : (amountIs ?? (currency === targetCurrency ? 'target' : 'source'));
+      const amountCents = toCents(amount);
+      // Which balance pays: the one the user named, else the recipient's own
+      // currency when the user holds enough of it (no conversion, no fee), else euros.
+      let sourceCurrency: Currency = 'EUR';
+      if (mode === 'source') sourceCurrency = currency;
+      else if (cents[targetCurrency] >= amountCents) sourceCurrency = targetCurrency;
       const sameCurrency = sourceCurrency === targetCurrency;
-      const rate = sameCurrency ? 1 : sourceCurrency === 'EUR' ? RATE_EUR_GBP : 1 / RATE_EUR_GBP;
+      const rate = sameCurrency ? 1 : RATES_FROM_EUR[targetCurrency] / RATES_FROM_EUR[sourceCurrency];
       const feeOn = (sourceCents: number): number => (sameCurrency ? 0 : Math.round(FEE_FIXED * 100 + FEE_PERCENT * sourceCents));
 
-      const amountCents = toCents(amount);
       let sourceCents: number;
       let targetCents: number;
       let feeCents: number;
@@ -241,6 +267,7 @@ export function createBankStore(options: BankStoreOptions = {}): BankStore {
         id: `qt_${nextId++}`,
         recipientId,
         recipientName: recipient.name,
+        recipientKind: contact ? 'contact' : 'saved',
         sourceAmount: fromCents(sourceCents),
         sourceCurrency,
         targetAmount: fromCents(targetCents),
@@ -248,7 +275,7 @@ export function createBankStore(options: BankStoreOptions = {}): BankStore {
         rate: round4(rate),
         fee: fromCents(feeCents),
         feeCurrency: sourceCurrency,
-        arrival: 'today',
+        arrival: contact ? 'in seconds' : 'today',
         expiresAt: new Date(now().getTime() + QUOTE_LIFETIME_MS).toISOString(),
       };
       quotes.set(quote.id, quote);
@@ -258,7 +285,7 @@ export function createBankStore(options: BankStoreOptions = {}): BankStore {
     async prepareTransfer(quoteId) {
       const quote = quotes.get(quoteId);
       if (!quote) throw new BankError('not_found', 'No such quote');
-      if (Date.parse(quote.expiresAt) < now().getTime()) throw new BankError('quote_expired', 'The quote has expired');
+      if (expired(quote)) throw new BankError('quote_expired', 'The quote has expired');
       if (cents[quote.sourceCurrency] < toCents(quote.sourceAmount)) {
         throw new BankError('insufficient_funds', 'Not enough money in the balance');
       }
@@ -285,6 +312,11 @@ export function createBankStore(options: BankStoreOptions = {}): BankStore {
       const entry = findTransfer(transferId);
       if (entry.result) return entry.result; // money moves once
       if (entry.pending) return entry.pending;
+      if (expired(entry.view.transfer)) {
+        // An old price is never honoured, and Face ID is not asked for nothing.
+        settle(entry, 'failed', PRICE_EXPIRED);
+        return PRICE_EXPIRED;
+      }
 
       entry.pending = new Promise<ConfirmResult>((resolve) => {
         entry.resolve = resolve;
@@ -301,7 +333,8 @@ export function createBankStore(options: BankStoreOptions = {}): BankStore {
     async cancelTransfer(transferId) {
       const entry = findTransfer(transferId);
       if (!entry.result) settle(entry, 'cancelled', { status: 'cancelled', reason: 'Cancelled' });
-      return { status: 'cancelled' };
+      // The truth, not a polite "cancelled": the money may already have gone.
+      return { status: entry.result?.status ?? 'cancelled' };
     },
 
     async getAudioPrivacy() {
@@ -319,6 +352,7 @@ export function createBankStore(options: BankStoreOptions = {}): BankStore {
       snapshot ??= {
         balances: balances(),
         recipients,
+        contacts,
         transactions,
         audioPrivacy,
         transfer: currentTransferId ? (transfers.get(currentTransferId)?.view ?? null) : null,

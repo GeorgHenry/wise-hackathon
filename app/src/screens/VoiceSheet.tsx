@@ -1,4 +1,4 @@
-import { ArrowUp, Headphones, Volume2, X } from 'lucide-react';
+import { ArrowUp, Headphones, Keyboard, Volume2, X } from 'lucide-react';
 import { type FormEvent, type KeyboardEvent, type ReactNode, useEffect, useRef, useState } from 'react';
 import type { BankSnapshot, BankStore } from '../bank/store';
 import { useBank } from '../bank/useBank';
@@ -17,16 +17,15 @@ const PHASE_LABEL: Record<Phase, string> = {
   ended: 'Session ended',
 };
 
-const OPENING_PHRASES = ["What's my balance?", 'Send Oskar 30 pounds', "Did Kadri's money arrive?"];
+const OPENING_PHRASES = ["What's my balance?", 'Send Oskar 30 pounds', 'Transfer 20 dollars to Martin', "Did Kadri's money arrive?"];
 const CONFIRM_PHRASES = ['Yes, send it', 'Make it 40 pounds', 'No, cancel'];
 const FOCUSABLE = 'button:not([disabled]), input:not([disabled])';
 
 interface VoiceSheetProps {
   store: BankStore;
   voice: Voice;
-  /** The scripted agent's lines are being read aloud by the browser. */
-  spoken: boolean;
   onClose: () => void;
+  /** Offered when the live agent cannot start. */
   onUseScripted: () => void;
 }
 
@@ -36,7 +35,11 @@ function latestCard(bank: BankSnapshot, since: number, onSend: () => void, onCan
   const newest = Math.max(transfer?.at ?? 0, lastIncoming?.at ?? 0, activity?.at ?? 0);
   if (newest < since) return null;
 
-  if (transfer?.at === newest) return <TransferCard view={transfer} onSend={onSend} onCancel={onCancel} />;
+  if (transfer?.at === newest) {
+    const name = transfer.transfer.recipientName;
+    const paidBefore = bank.transactions.some((t) => t.direction === 'out' && t.counterparty === name && t.id !== transfer.transaction?.id);
+    return <TransferCard view={transfer} paidBefore={paidBefore} onSend={onSend} onCancel={onCancel} />;
+  }
   if (lastIncoming?.at === newest) return <ArrivedCard payment={lastIncoming.transaction} />;
   if (activity?.kind === 'balances') {
     return bank.audioPrivacy === 'private' ? <BalanceCard balances={bank.balances} /> : <PrivateAudioCard />;
@@ -52,11 +55,12 @@ function latestCard(bank: BankSnapshot, since: number, onSend: () => void, onCan
   return null;
 }
 
-export function VoiceSheet({ store, voice, spoken, onClose, onUseScripted }: VoiceSheetProps) {
+export function VoiceSheet({ store, voice, onClose, onUseScripted }: VoiceSheetProps) {
   const bank = useBank(store);
   const { view, mode } = voice;
   const [openedAt] = useState(() => Date.now());
   const [typed, setTyped] = useState('');
+  const [typing, setTyping] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const sheet = useRef<HTMLElement>(null);
   const body = useRef<HTMLDivElement>(null);
@@ -96,8 +100,13 @@ export function VoiceSheet({ store, voice, spoken, onClose, onUseScripted }: Voi
   function cancelTransfer(): void {
     const waiting = bank.transfer;
     if (!waiting) return;
-    void store.cancelTransfer(waiting.transfer.transferId);
-    voice.notify('The user tapped Cancel on the card. The transfer is cancelled.');
+    void store.cancelTransfer(waiting.transfer.transferId).then(({ status }) => {
+      voice.notify(
+        status === 'cancelled'
+          ? 'The user tapped Cancel on the card. The transfer is cancelled.'
+          : `The user tapped Cancel on the card, but that transfer had already ended as: ${status}.`,
+      );
+    });
   }
 
   const waitingForYes = bank.transfer?.phase === 'prepared' && bank.transfer.at >= openedAt;
@@ -123,7 +132,16 @@ export function VoiceSheet({ store, voice, spoken, onClose, onUseScripted }: Voi
     return () => resized.disconnect();
   }, [ended]);
 
-  const phaseLabel = view.phase === 'listening' && !live ? 'Your turn: tap a phrase or type' : PHASE_LABEL[view.phase];
+  // The scripted stand-in has no microphone, so it cannot say it is listening.
+  // Tapping a phrase can remove its own button (the confirm phrases go once the payment is
+  // answered). Keep keyboard focus in the sheet instead of letting it fall to the page.
+  useEffect(() => {
+    const inside = sheet.current;
+    if (!inside || inside.contains(document.activeElement)) return;
+    inside.querySelector<HTMLElement>('.chip, .typebox input, .sheet__type')?.focus();
+  }, [waitingForYes]);
+
+  const phaseLabel = view.phase === 'listening' && !live ? 'Tap a phrase or type' : PHASE_LABEL[view.phase];
 
   return (
     <>
@@ -135,11 +153,8 @@ export function VoiceSheet({ store, voice, spoken, onClose, onUseScripted }: Voi
               Wise Voice
             </h2>
             <p className="sheet__meta">
-              {live ? 'Live voice' : 'Scripted demo'}
-              <span className="sheet__privacy">
-                {bank.audioPrivacy === 'private' ? <Headphones size={16} aria-hidden="true" /> : <Volume2 size={16} aria-hidden="true" />}
-                {bank.audioPrivacy === 'private' ? 'Private audio' : 'Loudspeaker'}
-              </span>
+              {bank.audioPrivacy === 'private' ? <Headphones size={16} aria-hidden="true" /> : <Volume2 size={16} aria-hidden="true" />}
+              {bank.audioPrivacy === 'private' ? 'Private audio' : 'Loudspeaker'}
             </p>
           </div>
           <button type="button" className="icon-btn" aria-label="End voice session" onClick={onClose}>
@@ -148,7 +163,7 @@ export function VoiceSheet({ store, voice, spoken, onClose, onUseScripted }: Voi
         </header>
 
         <div className="sheet__status">
-          <VoiceOrb phase={view.phase} />
+          <VoiceOrb phase={view.phase} silent={!live} />
           <p className="sheet__phase" role="status">
             {phaseLabel}
           </p>
@@ -160,7 +175,7 @@ export function VoiceSheet({ store, voice, spoken, onClose, onUseScripted }: Voi
             <div className="vcard__actions">
               {live && view.error && (
                 <button type="button" className="btn btn--neutral" onClick={onUseScripted}>
-                  Use the scripted agent
+                  Continue without voice
                 </button>
               )}
               <button type="button" className="btn btn--primary" onClick={() => voice.start()}>
@@ -175,37 +190,47 @@ export function VoiceSheet({ store, voice, spoken, onClose, onUseScripted }: Voi
               className={scrolled ? 'sheet__body sheet__body--scrolled' : 'sheet__body'}
               onScroll={(event) => setScrolled(event.currentTarget.scrollTop > 4)}
             >
-              {/* Not announced while the reply is also spoken, or a screen reader would talk over it. */}
-              <div className="captions" aria-live={live || spoken ? 'off' : 'polite'}>
+              {/* Not announced while the agent is speaking the same words, or a screen reader would talk over it. */}
+              <div className="captions" aria-live={live ? 'off' : 'polite'}>
                 {userLine && <p className="captions__user">“{userLine.text}”</p>}
                 {agentLine && !userSpokeLast && <p className="captions__agent">{agentLine.text}</p>}
               </div>
               {card}
             </div>
 
+            {/* With the real agent you just talk; typing is one tap away. Without it, tapping and typing are the only way in. */}
             <footer className="sheet__foot">
-              <ul className="chips" aria-label="Things to say">
-                {(waitingForYes ? CONFIRM_PHRASES : OPENING_PHRASES).map((phrase) => (
-                  <li key={phrase}>
-                    <button type="button" className="chip" onClick={() => voice.sendText(phrase)}>
-                      {phrase}
-                    </button>
-                  </li>
-                ))}
-              </ul>
-              <form className="typebox" onSubmit={submit}>
-                <input
-                  type="text"
-                  aria-label="Type instead of speaking"
-                  placeholder="Type instead of speaking"
-                  autoComplete="off"
-                  value={typed}
-                  onChange={(event) => setTyped(event.target.value)}
-                />
-                <button type="submit" className="icon-btn typebox__send" aria-label="Send">
-                  <ArrowUp size={22} aria-hidden="true" />
+              {!live && (
+                <ul className="chips" aria-label="Things to say">
+                  {(waitingForYes ? CONFIRM_PHRASES : OPENING_PHRASES).map((phrase) => (
+                    <li key={phrase}>
+                      <button type="button" className="chip" onClick={() => voice.sendText(phrase)}>
+                        {phrase}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {live && !typing ? (
+                <button type="button" className="sheet__type" onClick={() => setTyping(true)}>
+                  <Keyboard size={18} aria-hidden="true" /> Type instead
                 </button>
-              </form>
+              ) : (
+                <form className="typebox" onSubmit={submit}>
+                  <input
+                    type="text"
+                    aria-label="Type instead of speaking"
+                    placeholder="Type instead of speaking"
+                    autoComplete="off"
+                    autoFocus={live}
+                    value={typed}
+                    onChange={(event) => setTyped(event.target.value)}
+                  />
+                  <button type="submit" className="icon-btn typebox__send" aria-label="Send">
+                    <ArrowUp size={22} aria-hidden="true" />
+                  </button>
+                </form>
+              )}
             </footer>
           </>
         )}

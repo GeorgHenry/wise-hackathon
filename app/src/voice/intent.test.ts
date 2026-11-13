@@ -17,6 +17,10 @@ describe('what the user wants', () => {
     expect(parseIntent('send 12.50 euros to Toivo')).toEqual({ kind: 'send', amount: 12.5, currency: 'EUR' });
   });
 
+  it('hears dollars', () => {
+    expect(parseIntent('Transfer 20 dollars to Martin')).toEqual({ kind: 'send', amount: 20, currency: 'USD' });
+  });
+
   it('hears a request to send that leaves the amount for later', () => {
     expect(parseIntent('I want to send money to Kadri')).toEqual({ kind: 'send' });
   });

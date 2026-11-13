@@ -10,7 +10,7 @@ import { Lock } from './screens/Lock';
 import { Onboarding } from './screens/Onboarding';
 import { Cards, Payments, Recipients } from './screens/Tabs';
 import { VoiceSheet } from './screens/VoiceSheet';
-import { checkLiveAgent, type LiveHealth } from './voice/liveAgent';
+import { checkLiveAgent, type LiveHealth, liveReady } from './voice/liveAgent';
 import { type AgentMode, useVoice } from './voice/useVoice';
 
 type Stage = 'onboarding' | 'locked' | 'home';
@@ -35,18 +35,26 @@ function rememberOnboarded(done: boolean): void {
   }
 }
 
+/** `?agent=scripted` or `?agent=live` in the address picks the agent, for tests and rehearsals. */
+function agentFromUrl(): AgentMode | null {
+  const wanted = new URLSearchParams(window.location.search).get('agent');
+  return wanted === 'scripted' || wanted === 'live' ? wanted : null;
+}
+
 export default function App() {
   const store = bankStore;
   const bank = useBank(store);
   const [stage, setStage] = useState<Stage>(() => (wasOnboarded() ? 'locked' : 'onboarding'));
   const [tab, setTab] = useState<Tab>('home');
-  // Scripted by default: a live session bills ElevenLabs credits, so it is the presenter's choice.
-  const [settings, setSettings] = useState<DemoSettings>({ faceIdPasses: true, agentMode: 'scripted', speakReplies: true });
+  const [settings, setSettings] = useState<DemoSettings>({ faceIdPasses: true, agentMode: agentFromUrl() });
   const [voiceOpen, setVoiceOpen] = useState(false);
   const [demoOpen, setDemoOpen] = useState(false);
   const [live, setLive] = useState<LiveHealth | null>(null);
   const [toast, setToast] = useState<string | null>(null);
-  const voice = useVoice(store, { mode: settings.agentMode, speakReplies: settings.speakReplies });
+  // One way in: Wise Voice is the real agent whenever it can start. The silent scripted
+  // agent stands in when it cannot (no voice server), or when the presenter picks it.
+  const agentMode: AgentMode = settings.agentMode ?? (live !== null && liveReady(live) ? 'live' : 'scripted');
+  const voice = useVoice(store, { mode: agentMode });
   const approval = useApproval(store);
   const focusBeforeVoice = useRef<HTMLElement | null>(null);
 
@@ -108,7 +116,7 @@ export default function App() {
   }
 
   async function requestMicrophone(): Promise<void> {
-    if (settings.agentMode !== 'live') return; // the scripted agent has no use for it
+    if (agentMode !== 'live') return; // the scripted agent has no use for it
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       for (const track of stream.getTracks()) track.stop();
@@ -151,7 +159,6 @@ export default function App() {
               <VoiceSheet
                 store={store}
                 voice={voice}
-                spoken={settings.speakReplies}
                 onClose={closeVoice}
                 onUseScripted={() => changeSettings({ agentMode: 'scripted' })}
               />
@@ -174,6 +181,7 @@ export default function App() {
         open={demoOpen}
         store={store}
         settings={settings}
+        agentMode={agentMode}
         live={live}
         onSettings={changeSettings}
         onCheckLive={checkLive}

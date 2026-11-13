@@ -86,6 +86,7 @@ JSON. Failures reject with an `Error` whose `code` is `unknown_recipient`,
 ```
 getBalances()                -> [{ currency: 'EUR'|'GBP', amount }]
 listRecipients(query?)       -> [{ id, name, nickname?, currency, detail, verified }]
+findContacts(query?)         -> [{ id, name, onWise, phone? }]   phone contacts, also those not on Wise
 listTransactions({ direction?, counterparty?, limit? })
                              -> [{ id, direction: 'in'|'out', counterparty, amount, currency, date, status }]
 getQuote({ recipientId, amount, currency, amountIs: 'target'|'source' })
@@ -94,7 +95,7 @@ getQuote({ recipientId, amount, currency, amountIs: 'target'|'source' })
 prepareTransfer(quoteId)     -> { transferId, ...quote, status: 'prepared' }   nothing moves
 confirmTransfer(transferId)  -> { status: 'sent', transaction, balances }
                               | { status: 'declined'|'cancelled'|'failed', reason }
-cancelTransfer(transferId)   -> { status: 'cancelled' }
+cancelTransfer(transferId)   -> { status }   how it really ended: 'cancelled', or 'sent' if too late
 getAudioPrivacy()            -> 'private' | 'speaker'
 subscribe(listener)          -> unsubscribe; events { type: 'incoming_payment', transaction } and { type: 'changed' }
 ```
@@ -105,17 +106,21 @@ calendar date, `YYYY-MM-DD`.
 ### Money rules
 
 1. Amounts are held as whole cents inside the store, so sums never drift.
-2. A transfer is paid from the euro balance, unless the user named an amount in
-   another currency than the recipient's (then that currency is the source).
+2. Which balance pays: the currency the user named, when it differs from the
+   recipient's; otherwise the balance in the recipient's own currency when it
+   covers the amount; otherwise euros.
 3. Same-currency transfers have rate 1 and no fee. Conversions use one invented
    rate and one invented fee formula, defined in `seed.ts`.
 4. `prepareTransfer` checks the quote exists, has not expired, and is covered
    by the balance. It moves nothing.
 5. `confirmTransfer` moves money only after the Face ID step answers yes, and
    only once: a repeat call returns the first result, and a call made while
-   Face ID is showing returns the same pending promise.
-6. `cancelTransfer` always wins: cancelling while Face ID is showing closes the
-   sheet and nothing moves.
+   Face ID is showing returns the same pending promise. A transfer whose price
+   has expired fails, before Face ID is asked for and again when it answers.
+6. `cancelTransfer` always wins over a transfer that has not finished:
+   cancelling while Face ID is showing closes the sheet and nothing moves. Its
+   answer is how the transfer really ended, so a cancel that arrives after the
+   money has gone answers `sent`, not `cancelled`.
 7. Only one transfer waits at a time: preparing a new one cancels the one
    before it. Because nothing else lowers a balance, a transfer that passed
    the check in rule 4 cannot overdraw at confirm time.
@@ -130,8 +135,8 @@ There are two implementations with the same events:
 - **Live:** `voice-agent/web/voice.js`, loaded only if the file exists. Needs
   the voice server on port 8787 (proxied by Vite as `/voice-api`) and a
   microphone.
-- **Scripted (the default):** a small rule-based agent in `app/src/voice/scriptedAgent.ts`.
-  No microphone and no network: the presenter taps a suggested phrase or types.
+- **Scripted:** a small rule-based agent in `app/src/voice/scriptedAgent.ts`.
+  No microphone, no network and no voice: the presenter taps a suggested phrase or types.
   It follows the same carrot–plan steps and calls the same bank methods. It is
   how the UI is built and tested, and the fallback on stage.
 
@@ -146,8 +151,18 @@ Events the UI understands:
 | `error` (code, message) | Plain message; `microphone_blocked` and `start_failed` offer the scripted agent |
 | `incoming_payment` | "Money arrived" card |
 
-The app starts on the scripted agent, because a live session bills ElevenLabs
-credits for as long as it is open. Live is a switch in the demo controls.
+Wise Voice is the live agent whenever the voice server reports a key and an
+agent; otherwise the scripted one stands in. The voice sheet has no mode
+buttons: with the live agent you talk (typing is one tap away), and with the
+scripted one you tap a phrase or type. The presenter can force either under
+"Voice agent" in the demo controls or with `?agent=scripted` in the address,
+which rehearsals and tests use because a live session bills ElevenLabs credits
+for as long as it is open. (Changed on 2026-11-13 at the user's request: the
+scripted agent used to be the default and spoke with the browser's own voice.)
+
+Voice can also pay a phone contact who uses Wise (`findContacts`). The contact
+receives the currency the user names, including US dollars, which are sent but
+not held. A contact who is not on Wise is refused.
 
 Cards on the voice sheet (balance, confirm, Face ID, receipt) are drawn from
 the bank store, not from agent events, so they are right in both modes and

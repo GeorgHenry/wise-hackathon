@@ -10,8 +10,9 @@ export default defineConfig({
   server: {
     port: 5173,
     strictPort: true,
-    // voice-agent/web/voice.js lives beside app/, outside the Vite root.
-    fs: { allow: ['..'] },
+    // voice-agent/web/voice.js lives beside app/, outside the Vite root. Allow that
+    // folder and its packages only: the repo root holds .env.local with the ElevenLabs key.
+    fs: { allow: ['.', '../voice-agent/web', '../voice-agent/node_modules'] },
     proxy: { '/voice-api': voiceServer },
   },
   preview: {

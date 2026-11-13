@@ -79,11 +79,13 @@ const OUTCOME: Partial<Record<TransferPhase, string>> = {
 
 interface TransferCardProps {
   view: TransferView;
+  /** For a phone contact: whether money has gone to them before. */
+  paidBefore: boolean;
   onSend: () => void;
   onCancel: () => void;
 }
 
-export function TransferCard({ view, onSend, onCancel }: TransferCardProps) {
+export function TransferCard({ view, paidBefore, onSend, onCancel }: TransferCardProps) {
   const { transfer, phase } = view;
   const amount = formatMoney(transfer.targetAmount, transfer.targetCurrency);
   const paid = formatMoney(transfer.sourceAmount, transfer.sourceCurrency);
@@ -95,6 +97,12 @@ export function TransferCard({ view, onSend, onCancel }: TransferCardProps) {
         <dl className="vcard__facts">
           <dt>To</dt>
           <dd>{transfer.recipientName}</dd>
+          {transfer.recipientKind === 'contact' && (
+            <>
+              <dt>Contact</dt>
+              <dd>On Wise, {paidBefore ? 'paid before' : 'first payment'}</dd>
+            </>
+          )}
           <dt>They receive</dt>
           <dd>{amount}</dd>
           <dt>Fee</dt>

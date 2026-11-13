@@ -1,5 +1,5 @@
 import { speakDate, speakMoney } from '../bank/money';
-import type { Currency, PreparedTransfer, Recipient } from '../bank/types';
+import type { Contact, Currency, PreparedTransfer, Recipient } from '../bank/types';
 import { parseIntent } from './intent';
 import { pauseFor } from './speech';
 import type { StartVoiceOptions, VoiceEvent, VoiceSession } from './types';
@@ -23,22 +23,35 @@ const ON_SPEAKER =
   'You are on the loudspeaker, so I will not read amounts out. Put in headphones or hold the phone to your ear, then ask again.';
 const OVER_LIMIT = `By voice you can send up to ${VOICE_LIMIT.toLocaleString('en-GB')} at a time. For more, use the app. Nothing was sent.`;
 
+/** Someone money can go to: a saved recipient, or a phone contact. */
+interface Payee {
+  id: string;
+  name: string;
+  nickname?: string;
+  /** A saved recipient's account currency. A contact takes whatever currency is named. */
+  currency?: Currency;
+  contact?: Contact;
+}
+
+const fromRecipient = (r: Recipient): Payee => ({ id: r.id, name: r.name, nickname: r.nickname, currency: r.currency });
+const fromContact = (c: Contact): Payee => ({ id: c.id, name: c.name, contact: c });
+
 interface Draft {
-  recipient?: Recipient;
+  recipient?: Payee;
   amount?: number;
   currency?: Currency;
 }
 
 const firstName = (name: string): string => name.split(' ')[0] ?? name;
 
-function listNames(people: Recipient[]): string {
+function listNames(people: Payee[]): string {
   const names = people.map((p) => firstName(p.name));
   if (names.length < 2) return names[0] ?? 'nobody yet';
   return `${names.slice(0, -1).join(', ')} and ${names.at(-1)}`;
 }
 
-/** The saved person the sentence talks about, by first name or by nickname ("my daughter"). */
-function mentioned(text: string, people: Recipient[]): Recipient | undefined {
+/** The person the sentence talks about, by first name or by nickname ("my daughter"). */
+function mentioned(text: string, people: Payee[]): Payee | undefined {
   const words = text.toLowerCase().split(/[^\p{L}]+/u);
   return people.find((p) => {
     const nickname = p.nickname?.toLowerCase().replace(/^my /, '');
@@ -46,10 +59,15 @@ function mentioned(text: string, people: Recipient[]): Recipient | undefined {
   });
 }
 
-function readback(t: PreparedTransfer): string {
+/** `paidBefore` is given for a phone contact, so the user hears whether this is a first payment. */
+function readback(t: PreparedTransfer, paidBefore?: boolean): string {
   const fee = t.fee > 0 ? `The fee is ${speakMoney(t.fee, t.feeCurrency)}.` : 'There is no fee.';
+  const to =
+    t.recipientKind === 'contact'
+      ? `${t.recipientName}'s Wise account. ${t.recipientName} is in your phone contacts, and you ${paidBefore ? 'have' : "haven't"} paid them before.`
+      : `${t.recipientName}.`;
   return (
-    `You are sending ${speakMoney(t.targetAmount, t.targetCurrency)} to ${t.recipientName}. ${fee} ` +
+    `You are sending ${speakMoney(t.targetAmount, t.targetCurrency)} to ${to} ${fee} ` +
     `You pay ${speakMoney(t.sourceAmount, t.sourceCurrency)} in total. It should arrive ${t.arrival}.`
   );
 }
@@ -57,6 +75,8 @@ function readback(t: PreparedTransfer): string {
 function sayForError(error: unknown): string {
   const code = (error as { code?: unknown } | null)?.code;
   if (code === 'unknown_recipient') return 'That person is not saved, so I cannot send to them. Nothing was sent.';
+  if (code === 'not_on_wise') return 'That person does not use Wise, so I cannot pay them by voice. Nothing was sent.';
+  if (code === 'unsupported_currency') return 'I can only send euros, pounds or dollars. Nothing was sent.';
   if (code === 'insufficient_funds') return 'There is not enough money in your balance for that. Nothing was sent.';
   if (code === 'quote_expired') return 'That price has expired. Ask me again and I will get a new one.';
   return 'Something went wrong. Nothing was sent.';
@@ -119,7 +139,7 @@ export async function startScriptedVoice(options: ScriptedOptions): Promise<Voic
     return say(`You have ${list}.`);
   }
 
-  async function incoming(from: Recipient | undefined): Promise<void> {
+  async function incoming(from: Payee | undefined): Promise<void> {
     const query = { direction: 'in' as const, limit: 3, ...(from ? { counterparty: firstName(from.name) } : {}) };
     const [allowed, payments] = await tool('get_transactions', async () => [await amountsAllowed(), await bank.listTransactions(query)] as const);
     const latest = payments[0];
@@ -130,24 +150,37 @@ export async function startScriptedVoice(options: ScriptedOptions): Promise<Voic
     return say(`Yes. ${speakMoney(latest.amount, latest.currency)} arrived from ${latest.counterparty} ${when}.`);
   }
 
-  async function send(people: Recipient[], named: Recipient | undefined, amount?: number, currency?: Currency): Promise<void> {
+  async function send(people: Payee[], named: Payee | undefined, amount?: number, currency?: Currency): Promise<void> {
     draft = { ...draft, ...(named ? { recipient: named } : {}), ...(amount !== undefined ? { amount } : {}), ...(currency ? { currency } : {}) };
     const { recipient } = draft;
-    if (!recipient) return say(`By voice I can only send to people you have saved: ${listNames(people)}. Who is it for?`);
+    if (!recipient) {
+      const saved = listNames(people.filter((p) => !p.contact));
+      return say(`By voice I can only send to people you have saved (${saved}) or to a phone contact who uses Wise. Who is it for?`);
+    }
+    if (recipient.contact && !recipient.contact.onWise) {
+      draft = null;
+      return say(`${recipient.name} is in your phone contacts but does not use Wise, so I cannot pay them by voice. Nothing was sent.`);
+    }
     if (draft.amount === undefined) return say(`How much should I send to ${firstName(recipient.name)}?`);
 
     const wanted = draft.amount;
-    const namedCurrency = draft.currency ?? recipient.currency;
+    const namedCurrency = draft.currency ?? recipient.currency ?? 'EUR';
     if (wanted > VOICE_LIMIT) return say(OVER_LIMIT);
 
+    let paidBefore: boolean | undefined;
     try {
+      if (recipient.contact) {
+        const earlier = await tool('get_transactions', () => bank.listTransactions({ direction: 'out', counterparty: recipient.name, limit: 1 }));
+        paidBefore = earlier.length > 0;
+      }
       const quote = await tool('get_quote', () =>
         bank.getQuote({
           recipientId: recipient.id,
           amount: wanted,
           currency: namedCurrency,
-          // Said in the recipient's currency: that is what arrives. Otherwise it is what the user pays.
-          amountIs: namedCurrency === recipient.currency ? 'target' : 'source',
+          // Said in the recipient's currency (or to a contact, who takes any): that is what arrives.
+          // Otherwise it is what the user pays.
+          amountIs: recipient.contact || namedCurrency === recipient.currency ? 'target' : 'source',
         }),
       );
       if (quote.sourceAmount > VOICE_LIMIT || quote.targetAmount > VOICE_LIMIT) return say(OVER_LIMIT);
@@ -155,7 +188,7 @@ export async function startScriptedVoice(options: ScriptedOptions): Promise<Voic
     } catch (error) {
       return say(sayForError(error));
     }
-    return say(`${readback(pending)} Shall I send it?`);
+    return say(`${readback(pending, paidBefore)} Shall I send it?`);
   }
 
   async function confirm(transfer: PreparedTransfer): Promise<void> {
@@ -180,13 +213,14 @@ export async function startScriptedVoice(options: ScriptedOptions): Promise<Voic
     pending = null;
     draft = null;
     if (!waiting) return say('Okay. There is nothing waiting to send.');
-    await tool('cancel_transfer', () => bank.cancelTransfer(waiting.transferId));
+    const { status } = await tool('cancel_transfer', () => bank.cancelTransfer(waiting.transferId));
+    if (status === 'sent') return say('That payment had already been sent, so I could not cancel it.');
     return say('Cancelled. Nothing was sent.');
   }
 
   async function handle(text: string): Promise<void> {
     const intent = parseIntent(text);
-    const people = await bank.listRecipients();
+    const people = [...(await bank.listRecipients()).map(fromRecipient), ...(await bank.findContacts()).map(fromContact)];
     const named = mentioned(text, people);
     switch (intent.kind) {
       case 'balance':

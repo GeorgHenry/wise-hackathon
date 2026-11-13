@@ -21,6 +21,21 @@ export function Flag({ currency, size = 32 }: { currency: Currency; size?: numbe
     );
   }
 
+  if (currency === 'USD') {
+    return (
+      <svg className="flag" width={size} height={size} viewBox="0 0 32 32" role="img" aria-label="US dollar">
+        <clipPath id={clip}>
+          <circle cx="16" cy="16" r="16" />
+        </clipPath>
+        <g clipPath={`url(#${clip})`}>
+          <rect width="32" height="32" fill="#fff" />
+          <path d="M0 2.5h32M0 7.4h32M0 12.3h32M0 17.2h32M0 22.1h32M0 27h32M0 31.9h32" stroke="#b22234" strokeWidth="2.5" />
+          <rect width="15" height="17.2" fill="#3c3b6e" />
+        </g>
+      </svg>
+    );
+  }
+
   return (
     <svg className="flag" width={size} height={size} viewBox="0 0 32 32" role="img" aria-label="British pound">
       <clipPath id={clip}>

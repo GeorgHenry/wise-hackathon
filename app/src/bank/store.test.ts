@@ -32,7 +32,7 @@ function heldApproval() {
   return { approver, answer: (approved: boolean) => answer(approved), calls: () => calls };
 }
 
-/** Thirty pounds for Oskar: costs 35.26 EUR with the seed's rate and fee. */
+/** Thirty pounds for Oskar, paid from the pound balance: no conversion and no fee. */
 async function prepareThirtyPoundsForOskar(store: BankStore): Promise<PreparedTransfer> {
   const quote = await store.getQuote({ recipientId: 'rcp_oskar', amount: 30, currency: 'GBP', amountIs: 'target' });
   return store.prepareTransfer(quote.id);
@@ -79,15 +79,27 @@ describe('reading the account', () => {
 });
 
 describe('quotes', () => {
-  it('keeps the amount exact for the recipient and adds the fee to what the user pays', async () => {
+  it('pays from the balance in the recipient’s currency when it covers the amount', async () => {
     const quote = await makeStore().getQuote({ recipientId: 'rcp_oskar', amount: 30, currency: 'GBP', amountIs: 'target' });
     expect(quote).toMatchObject({
       recipientName: 'Oskar Tamm',
       targetAmount: 30,
       targetCurrency: 'GBP',
-      sourceAmount: 35.26,
+      sourceAmount: 30,
+      sourceCurrency: 'GBP',
+      fee: 0,
+      rate: 1,
+    });
+  });
+
+  it('converts from euros, adding the fee, when the pounds do not cover the amount', async () => {
+    const quote = await makeStore().getQuote({ recipientId: 'rcp_oskar', amount: 400, currency: 'GBP', amountIs: 'target' });
+    expect(quote).toMatchObject({
+      targetAmount: 400,
+      targetCurrency: 'GBP',
+      sourceAmount: 465.33,
       sourceCurrency: 'EUR',
-      fee: 0.55,
+      fee: 2.47,
       feeCurrency: 'EUR',
       rate: 0.8642,
     });
@@ -155,15 +167,49 @@ describe('preparing a transfer', () => {
 });
 
 describe('confirming a transfer', () => {
-  it('takes exactly the quoted amount from the euro balance once approved', async () => {
+  it('takes exactly the quoted amount from the paying balance once approved', async () => {
     const store = makeStore(approve);
     const transfer = await prepareThirtyPoundsForOskar(store);
     const result = await store.confirmTransfer(transfer.transferId);
     expect(result.status).toBe('sent');
     expect(await store.getBalances()).toEqual([
-      { currency: 'EUR', amount: 1804.99 },
+      { currency: 'EUR', amount: 1840.25 },
+      { currency: 'GBP', amount: 282.6 },
+    ]);
+  });
+
+  it('takes the converted amount and its fee from euros when pounds do not cover it', async () => {
+    const store = makeStore(approve);
+    const quote = await store.getQuote({ recipientId: 'rcp_oskar', amount: 400, currency: 'GBP' });
+    const transfer = await store.prepareTransfer(quote.id);
+    await store.confirmTransfer(transfer.transferId);
+    expect(await store.getBalances()).toEqual([
+      { currency: 'EUR', amount: 1374.92 },
       { currency: 'GBP', amount: 312.6 },
     ]);
+  });
+
+  it('fails without asking for approval when the price has expired', async () => {
+    const held = heldApproval();
+    const store = makeStore(held.approver);
+    const transfer = await prepareThirtyPoundsForOskar(store);
+    clock = new Date(NOON.getTime() + 16 * 60 * 1000);
+    expect(await store.confirmTransfer(transfer.transferId)).toMatchObject({ status: 'failed' });
+    expect(held.calls()).toBe(0);
+    expect(await store.getBalances()).toEqual(SEED_BALANCES);
+    expect(store.getSnapshot().transfer?.phase).toBe('failed');
+  });
+
+  it('moves nothing when the price expires while approval is showing', async () => {
+    const held = heldApproval();
+    const store = makeStore(held.approver);
+    const transfer = await prepareThirtyPoundsForOskar(store);
+    const pending = store.confirmTransfer(transfer.transferId);
+    await tick();
+    clock = new Date(NOON.getTime() + 16 * 60 * 1000);
+    held.answer(true);
+    expect(await pending).toMatchObject({ status: 'failed' });
+    expect(await store.getBalances()).toEqual(SEED_BALANCES);
   });
 
   it('lists the payment first, as what the recipient received', async () => {
@@ -180,7 +226,7 @@ describe('confirming a transfer', () => {
     const first = await store.confirmTransfer(transfer.transferId);
     const second = await store.confirmTransfer(transfer.transferId);
     expect(second).toEqual(first);
-    expect((await store.getBalances())[0]).toEqual({ currency: 'EUR', amount: 1804.99 });
+    expect((await store.getBalances())[1]).toEqual({ currency: 'GBP', amount: 282.6 });
   });
 
   it('asks for approval once when two confirms overlap', async () => {
@@ -193,7 +239,7 @@ describe('confirming a transfer', () => {
     held.answer(true);
     expect(await second).toEqual(await first);
     expect(held.calls()).toBe(1);
-    expect((await store.getBalances())[0]).toEqual({ currency: 'EUR', amount: 1804.99 });
+    expect((await store.getBalances())[1]).toEqual({ currency: 'GBP', amount: 282.6 });
   });
 
   it('shows the approval step to the screens while it waits, then the result', async () => {
@@ -237,13 +283,20 @@ describe('confirming a transfer', () => {
     expect(store.getSnapshot().transfer?.phase).toBe('cancelled');
   });
 
-  it('does not undo a payment that was already sent when cancel arrives late', async () => {
+  it('answers a late cancel with what really happened, and does not undo the payment', async () => {
     const store = makeStore(approve);
     const transfer = await prepareThirtyPoundsForOskar(store);
     await store.confirmTransfer(transfer.transferId);
-    await store.cancelTransfer(transfer.transferId);
+    expect(await store.cancelTransfer(transfer.transferId)).toEqual({ status: 'sent' });
     expect(store.getSnapshot().transfer?.phase).toBe('sent');
-    expect((await store.getBalances())[0]).toEqual({ currency: 'EUR', amount: 1804.99 });
+    expect((await store.getBalances())[1]).toEqual({ currency: 'GBP', amount: 282.6 });
+  });
+
+  it('answers cancelled when a waiting transfer is cancelled', async () => {
+    const store = makeStore(approve);
+    const transfer = await prepareThirtyPoundsForOskar(store);
+    expect(await store.cancelTransfer(transfer.transferId)).toEqual({ status: 'cancelled' });
+    expect(await store.getBalances()).toEqual(SEED_BALANCES);
   });
 
   it('rejects a transfer id it never issued', async () => {
@@ -340,5 +393,68 @@ describe('what the screens see', () => {
     expect(await store.getBalances()).toEqual(SEED_BALANCES);
     expect(store.getSnapshot()).toMatchObject({ transfer: null, lastIncoming: null, audioPrivacy: 'private' });
     expect(store.getSnapshot().transactions).toHaveLength(5);
+  });
+});
+
+describe('phone contacts', () => {
+  it('finds a contact by name, whatever the case', async () => {
+    const found = await makeStore().findContacts('MARTIN');
+    expect(found).toEqual([{ id: 'ct_martin', name: 'Martin Saar', onWise: true }]);
+  });
+
+  it('returns every contact when no name is given, those without Wise included', async () => {
+    const everyone = await makeStore().findContacts();
+    expect(everyone.map((c) => [c.name, c.onWise])).toEqual([
+      ['Martin Saar', true],
+      ['Mari Lepp', false],
+    ]);
+  });
+
+  it('quotes a contact in the currency the user named, arriving in seconds', async () => {
+    const quote = await makeStore().getQuote({ recipientId: 'ct_martin', amount: 20, currency: 'USD', amountIs: 'target' });
+    expect(quote).toMatchObject({
+      recipientName: 'Martin Saar',
+      recipientKind: 'contact',
+      targetAmount: 20,
+      targetCurrency: 'USD',
+      sourceAmount: 18.93,
+      sourceCurrency: 'EUR',
+      fee: 0.47,
+      rate: 1.0835,
+      arrival: 'in seconds',
+    });
+  });
+
+  it('pays a contact from the matching balance when it covers the amount', async () => {
+    const quote = await makeStore().getQuote({ recipientId: 'ct_martin', amount: 20, currency: 'GBP', amountIs: 'target' });
+    expect(quote).toMatchObject({ targetCurrency: 'GBP', sourceAmount: 20, sourceCurrency: 'GBP', fee: 0, rate: 1 });
+  });
+
+  it('marks a saved recipient’s quote as saved, arriving today', async () => {
+    const quote = await makeStore().getQuote({ recipientId: 'rcp_oskar', amount: 30, currency: 'GBP' });
+    expect(quote).toMatchObject({ recipientKind: 'saved', arrival: 'today' });
+  });
+
+  it('refuses a contact who does not use Wise', async () => {
+    const request = makeStore().getQuote({ recipientId: 'ct_mari', amount: 10, currency: 'EUR' });
+    await expect(request).rejects.toMatchObject({ code: 'not_on_wise' });
+  });
+
+  it('refuses a currency it does not know', async () => {
+    const request = makeStore().getQuote({ recipientId: 'ct_martin', amount: 10, currency: 'SEK' as never });
+    await expect(request).rejects.toMatchObject({ code: 'unsupported_currency' });
+  });
+
+  it('sends to a contact after approval and lists the payment under their name', async () => {
+    const store = makeStore(approve);
+    const quote = await store.getQuote({ recipientId: 'ct_martin', amount: 20, currency: 'USD', amountIs: 'target' });
+    const transfer = await store.prepareTransfer(quote.id);
+    expect(await store.confirmTransfer(transfer.transferId)).toMatchObject({ status: 'sent' });
+    expect(await store.getBalances()).toEqual([
+      { currency: 'EUR', amount: 1821.32 },
+      { currency: 'GBP', amount: 312.6 },
+    ]);
+    const [newest] = await store.listTransactions({ direction: 'out', counterparty: 'Martin Saar' });
+    expect(newest).toMatchObject({ counterparty: 'Martin Saar', amount: 20, currency: 'USD' });
   });
 });

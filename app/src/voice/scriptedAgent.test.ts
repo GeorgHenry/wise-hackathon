@@ -5,6 +5,7 @@ import type { VoiceEvent, VoiceSession } from './types';
 
 const NOON = new Date(2026, 10, 13, 12, 0);
 const SEED_EUR = { currency: 'EUR', amount: 1840.25 };
+const SEED_GBP = { currency: 'GBP', amount: 312.6 };
 
 interface Call {
   store: BankStore;
@@ -109,11 +110,19 @@ describe('sending money', () => {
     const { store, say } = await startCall();
     const reply = await say('Send Oskar 30 pounds');
     expect(reply).toContain('30 pounds to Oskar Tamm');
-    expect(reply).toContain('The fee is 55 cents');
-    expect(reply).toContain('35 euros and 26 cents');
+    expect(reply).toContain('There is no fee');
+    expect(reply).toContain('You pay 30 pounds in total');
     expect(reply).toContain('Shall I send it?');
     expect(store.getSnapshot().transfer?.phase).toBe('prepared');
-    expect((await store.getBalances())[0]).toEqual(SEED_EUR);
+    expect(await store.getBalances()).toEqual([SEED_EUR, SEED_GBP]);
+  });
+
+  it('reads the fee and the cost in euros when the pounds have to be converted', async () => {
+    const { say } = await startCall();
+    const reply = await say('Send Oskar 400 pounds');
+    expect(reply).toContain('400 pounds to Oskar Tamm');
+    expect(reply).toContain('The fee is 2 euros and 47 cents');
+    expect(reply).toContain('You pay 465 euros and 33 cents in total');
   });
 
   it('sends after a yes and an approved Face ID', async () => {
@@ -122,7 +131,17 @@ describe('sending money', () => {
     const reply = await say('Yes, send it');
     expect(reply).toMatch(/^Sent\./);
     expect(store.getSnapshot().transfer?.phase).toBe('sent');
-    expect((await store.getBalances())[0]).toEqual({ currency: 'EUR', amount: 1804.99 });
+    expect(await store.getBalances()).toEqual([SEED_EUR, { currency: 'GBP', amount: 282.6 }]);
+  });
+
+  it('does not claim a cancel when the money had already gone', async () => {
+    const { store, say } = await startCall();
+    await say('Send Oskar 30 pounds');
+    const transferId = store.getSnapshot().transfer?.transfer.transferId ?? '';
+    await store.confirmTransfer(transferId); // approved on the card while the agent still waited
+    const reply = await say('No, cancel');
+    expect(reply).toMatch(/already been sent/i);
+    expect(reply).not.toMatch(/nothing was sent/i);
   });
 
   it('asks for the amount when it is missing, then carries on', async () => {
@@ -207,6 +226,41 @@ describe('sending money', () => {
     session.notify('The user tapped Cancel on the card');
     await vi.waitFor(() => expect(said().length).toBeGreaterThan(before));
     expect(await say('Yes')).toMatch(/nothing waiting/i);
+  });
+});
+
+describe('paying a phone contact', () => {
+  it('reads back that the person is a phone contact who has not been paid before', async () => {
+    const { store, say } = await startCall();
+    const reply = await say('Transfer 20 dollars to Martin');
+    expect(reply).toContain("20 dollars to Martin Saar's Wise account");
+    expect(reply).toContain("in your phone contacts, and you haven't paid them before");
+    expect(reply).toContain('The fee is 47 cents');
+    expect(reply).toContain('You pay 18 euros and 93 cents in total');
+    expect(reply).toContain('arrive in seconds');
+    expect(reply).toContain('Shall I send it?');
+    expect(store.getSnapshot().transfer?.phase).toBe('prepared');
+  });
+
+  it('sends to the contact after a yes and Face ID', async () => {
+    const { store, say } = await startCall();
+    await say('Transfer 20 dollars to Martin');
+    expect(await say('Yes')).toMatch(/^Sent\. 20 dollars is on its way to Martin Saar/);
+    expect((await store.getBalances())[0]).toEqual({ currency: 'EUR', amount: 1821.32 });
+  });
+
+  it('says the contact has been paid before, the second time', async () => {
+    const { say } = await startCall();
+    await say('Transfer 20 dollars to Martin');
+    await say('Yes');
+    expect(await say('Transfer 5 dollars to Martin')).toContain('and you have paid them before');
+  });
+
+  it('will not pay a contact who does not use Wise', async () => {
+    const { store, say } = await startCall();
+    const reply = await say('Send Mari 10 euros');
+    expect(reply).toMatch(/does not use Wise/);
+    expect(store.getSnapshot().transfer).toBeNull();
   });
 });
 

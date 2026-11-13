@@ -93,20 +93,6 @@
   outline-offset: 3px;
 }
 
-.demo__check {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  min-height: 44px;
-  font-size: 15px;
-}
-
-.demo__check input {
-  width: 20px;
-  height: 20px;
-  accent-color: var(--green);
-}
-
 .demo__buttons {
   display: grid;
   gap: 8px;

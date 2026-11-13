@@ -5,7 +5,7 @@ export const toCents = (amount: number): number => Math.round(amount * 100);
 export const fromCents = (cents: number): number => cents / 100;
 
 const NUMBER = new Intl.NumberFormat('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-const SYMBOL: Record<Currency, string> = { EUR: '€', GBP: '£' };
+const SYMBOL: Record<Currency, string> = { EUR: '€', GBP: '£', USD: '$' };
 
 /** "1,840.25 EUR", the way the Wise app writes amounts in lists. */
 export function formatMoney(amount: number, currency: Currency): string {
@@ -20,6 +20,7 @@ export function formatSymbol(amount: number, currency: Currency): string {
 const WORDS: Record<Currency, readonly [string, string, string, string]> = {
   EUR: ['euro', 'euros', 'cent', 'cents'],
   GBP: ['pound', 'pounds', 'penny', 'pence'],
+  USD: ['dollar', 'dollars', 'cent', 'cents'],
 };
 
 /** 58.1 EUR -> "58 euros and 10 cents"; 50 GBP -> "50 pounds". */

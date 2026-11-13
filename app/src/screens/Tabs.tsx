@@ -14,10 +14,11 @@ interface TabProps {
 }
 
 export function Recipients() {
-  const { recipients } = useBank();
+  const { recipients, contacts } = useBank();
   const [query, setQuery] = useState('');
   const wanted = query.trim().toLowerCase();
   const shown = recipients.filter((r) => `${r.name} ${r.nickname ?? ''}`.toLowerCase().includes(wanted));
+  const shownContacts = contacts.filter((c) => c.name.toLowerCase().includes(wanted));
 
   return (
     <div className="screen">
@@ -27,8 +28,8 @@ export function Recipients() {
         <span className="sr-only">Search recipients</span>
         <input type="search" placeholder="Search" value={query} onChange={(event) => setQuery(event.target.value)} />
       </label>
-      <p className="tab__hint muted">Wise Voice can send money to these saved people only.</p>
-      {shown.length === 0 ? (
+      <p className="tab__hint muted">Wise Voice can send money to these saved people, and to phone contacts who use Wise.</p>
+      {shown.length + shownContacts.length === 0 ? (
         <p className="tab__empty" role="status">
           No saved recipient matches “{query.trim()}”.
         </p>
@@ -44,6 +45,22 @@ export function Recipients() {
             </li>
           ))}
         </ul>
+      )}
+      {shownContacts.length > 0 && (
+        <>
+          <h2 className="tab__group">Phone contacts</h2>
+          <ul>
+            {shownContacts.map((c) => (
+              <li key={c.id} className="tx">
+                <Avatar name={c.name} large />
+                <span className="tx__main">
+                  <span className="tx__title">{c.name}</span>
+                  <span className="tx__sub">{c.onWise ? 'On Wise' : 'Not on Wise: cannot be paid by voice'}</span>
+                </span>
+              </li>
+            ))}
+          </ul>
+        </>
       )}
     </div>
   );

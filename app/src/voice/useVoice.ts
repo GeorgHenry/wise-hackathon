@@ -4,15 +4,12 @@ import type { BankStore } from '../bank/store';
 import { startLiveVoice } from './liveAgent';
 import { startScriptedVoice } from './scriptedAgent';
 import { idleSession, reduceSession, type SessionView } from './sessionReducer';
-import { cancelSpeech, speakAloud } from './speech';
 import type { VoiceEvent, VoiceSession } from './types';
 
 export type AgentMode = 'scripted' | 'live';
 
 export interface VoiceSettings {
   mode: AgentMode;
-  /** The scripted agent reads its lines with the browser's own voice. */
-  speakReplies: boolean;
 }
 
 export interface Voice {
@@ -49,7 +46,6 @@ export function useVoice(store: BankStore, settings: VoiceSettings): Voice {
     run.current += 1;
     const ending = session.current;
     session.current = null;
-    cancelSpeech();
     ending?.stop().catch(() => undefined);
     cancelWaitingTransfer(store);
     dispatch({ type: 'reset' });
@@ -59,7 +55,6 @@ export function useVoice(store: BankStore, settings: VoiceSettings): Voice {
     (wanted?: AgentMode) => {
       session.current?.stop().catch(() => undefined);
       session.current = null;
-      cancelSpeech();
 
       const thisRun = ++run.current;
       const chosen = wanted ?? latest.current.mode;
@@ -70,10 +65,7 @@ export function useVoice(store: BankStore, settings: VoiceSettings): Voice {
         if (run.current === thisRun) dispatch(event);
       };
       const common = { bank: store, onEvent, userName: ACCOUNT_HOLDER.firstName, language: 'en' };
-      const starting =
-        chosen === 'live'
-          ? startLiveVoice(common)
-          : startScriptedVoice({ ...common, speak: (text) => speakAloud(text, () => latest.current.speakReplies) });
+      const starting = chosen === 'live' ? startLiveVoice(common) : startScriptedVoice(common);
 
       starting.then(
         (started) => {
@@ -93,7 +85,6 @@ export function useVoice(store: BankStore, settings: VoiceSettings): Voice {
   useEffect(() => {
     if (view.phase !== 'ended') return;
     session.current = null;
-    cancelSpeech();
     cancelWaitingTransfer(store);
   }, [view.phase, store]);
 
@@ -102,7 +93,6 @@ export function useVoice(store: BankStore, settings: VoiceSettings): Voice {
     () => () => {
       run.current += 1;
       session.current?.stop().catch(() => undefined);
-      cancelSpeech();
     },
     [],
   );

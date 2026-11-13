@@ -31,6 +31,17 @@
   gap: 12px;
 }
 
+.sheet__type {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 48px;
+  color: var(--text-2);
+  font-size: 15px;
+  font-weight: 600;
+}
+
 .sheet__title {
   font-size: 22px;
   font-weight: 700;
@@ -39,8 +50,9 @@
 
 .sheet__meta {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 12px;
+  gap: 2px 12px;
   margin-top: 2px;
   color: var(--text-2);
   font-size: 14px;

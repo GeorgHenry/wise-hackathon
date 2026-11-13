@@ -40,6 +40,11 @@ describe('money said aloud', () => {
     expect(speakMoney(0.01, 'EUR')).toBe('1 cent');
   });
 
+  it('says dollars and writes them with their sign', () => {
+    expect(speakMoney(20, 'USD')).toBe('20 dollars');
+    expect(formatSymbol(20, 'USD')).toBe('$20.00');
+  });
+
   it('says pence for pounds', () => {
     expect(speakMoney(312.6, 'GBP')).toBe('312 pounds and 60 pence');
   });

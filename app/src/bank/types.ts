@@ -1,10 +1,17 @@
 // The demo account's data types and the contract the voice agent calls.
 // voice-agent/web/tools-runtime.js depends on this contract; change both together.
 
-export type Currency = 'EUR' | 'GBP';
+/** EUR and GBP are held as balances; USD can only be sent. */
+export type Currency = 'EUR' | 'GBP' | 'USD';
 export type Direction = 'in' | 'out';
 export type AudioPrivacy = 'private' | 'speaker';
-export type BankErrorCode = 'unknown_recipient' | 'insufficient_funds' | 'quote_expired' | 'not_found';
+export type BankErrorCode =
+  | 'unknown_recipient'
+  | 'insufficient_funds'
+  | 'quote_expired'
+  | 'not_found'
+  | 'not_on_wise'
+  | 'unsupported_currency';
 
 export interface Balance {
   currency: Currency;
@@ -21,6 +28,14 @@ export interface Recipient {
   /** Shown in lists, for example "UK account ending 4417". */
   detail: string;
   verified: boolean;
+}
+
+/** Someone in the phone's contacts. Those on Wise can be paid straight to their Wise account. */
+export interface Contact {
+  id: string;
+  name: string;
+  onWise: boolean;
+  phone?: string;
 }
 
 export interface Transaction {
@@ -47,6 +62,8 @@ export interface Quote {
   id: string;
   recipientId: string;
   recipientName: string;
+  /** A saved recipient, or a phone contact paid through Wise. */
+  recipientKind: 'saved' | 'contact';
   /** Everything that leaves the account, fee included. */
   sourceAmount: number;
   sourceCurrency: Currency;
@@ -81,13 +98,19 @@ export type BankEvent = { type: 'incoming_payment'; transaction: Transaction } |
 export interface Bank {
   getBalances(): Promise<Balance[]>;
   listRecipients(query?: string): Promise<Recipient[]>;
+  /** The phone's contacts, including those who do not use Wise. */
+  findContacts(query?: string): Promise<Contact[]>;
   listTransactions(query?: TransactionQuery): Promise<Transaction[]>;
   getQuote(request: QuoteRequest): Promise<Quote>;
   /** Nothing moves. */
   prepareTransfer(quoteId: string): Promise<PreparedTransfer>;
   /** Resolves after the Face ID step. Money moves at most once per transfer. */
   confirmTransfer(transferId: string): Promise<ConfirmResult>;
-  cancelTransfer(transferId: string): Promise<{ status: 'cancelled' }>;
+  /**
+   * Cancels a transfer that has not finished. The answer is how the transfer
+   * really ended: 'cancelled' normally, but 'sent' if the money had already gone.
+   */
+  cancelTransfer(transferId: string): Promise<{ status: ConfirmResult['status'] }>;
   getAudioPrivacy(): Promise<AudioPrivacy>;
   subscribe(listener: (event: BankEvent) => void): () => void;
 }

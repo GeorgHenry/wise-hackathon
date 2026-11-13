@@ -9,8 +9,8 @@ import './DemoControls.css';
 
 export interface DemoSettings {
   faceIdPasses: boolean;
-  agentMode: AgentMode;
-  speakReplies: boolean;
+  /** null: the live agent when it is ready, otherwise the scripted one. */
+  agentMode: AgentMode | null;
 }
 
 interface ChoiceProps<T extends string> {
@@ -43,13 +43,15 @@ function liveStatus(health: LiveHealth | null): string {
   if (!health.reachable) return 'The voice server is not running. In voice-agent/, run: npm run server';
   if (!health.keySet) return 'The ElevenLabs key is not set yet.';
   if (!health.agentSet) return 'The ElevenLabs agent has not been created yet.';
-  return 'The live agent is ready. Every live session uses ElevenLabs credits and the microphone.';
+  return 'The live agent is ready. It uses the microphone and ElevenLabs credits while the voice sheet is open. Scripted is a silent stand-in: tap or type.';
 }
 
 interface DemoControlsProps {
   open: boolean;
   store: BankStore;
   settings: DemoSettings;
+  /** The agent the next voice session will use. */
+  agentMode: AgentMode;
   live: LiveHealth | null;
   onSettings: (patch: Partial<DemoSettings>) => void;
   onCheckLive: () => void;
@@ -58,7 +60,7 @@ interface DemoControlsProps {
   onReset: () => void;
 }
 
-export function DemoControls({ open, store, settings, live, onSettings, onCheckLive, onLock, onReplayOnboarding, onReset }: DemoControlsProps) {
+export function DemoControls({ open, store, settings, agentMode, live, onSettings, onCheckLive, onLock, onReplayOnboarding, onReset }: DemoControlsProps) {
   const { audioPrivacy } = useBank(store);
   const liveUsable = live !== null && liveReady(live);
 
@@ -95,7 +97,7 @@ export function DemoControls({ open, store, settings, live, onSettings, onCheckL
         <Choice
           legend="Voice agent"
           name="agent"
-          value={settings.agentMode}
+          value={agentMode}
           options={[
             { value: 'scripted', label: 'Scripted' },
             { value: 'live', label: 'Live', disabled: !liveUsable },
@@ -111,11 +113,6 @@ export function DemoControls({ open, store, settings, live, onSettings, onCheckL
           </button>
         )}
       </div>
-
-      <label className="demo__check">
-        <input type="checkbox" checked={settings.speakReplies} onChange={(event) => onSettings({ speakReplies: event.target.checked })} />
-        <span>The scripted agent speaks aloud</span>
-      </label>
 
       <div className="demo__buttons">
         <button type="button" className="btn btn--primary" onClick={() => store.simulateIncoming({ from: 'Kadri Tamm', amount: 40, currency: 'GBP' })}>

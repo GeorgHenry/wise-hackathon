@@ -1,10 +1,13 @@
-import { Mic, MicOff } from 'lucide-react';
+import { Keyboard, Mic, MicOff } from 'lucide-react';
 import type { Phase } from '../voice/sessionReducer';
 
-/** Shows at a glance what the voice agent is doing. Decorative: the phase is also written out beside it. */
-export function VoiceOrb({ phase }: { phase: Phase }) {
+/**
+ * Shows at a glance what the voice agent is doing. Decorative: the phase is also written out beside it.
+ * `silent`: the scripted stand-in, which does not listen, so its turn shows a keyboard, not a microphone.
+ */
+export function VoiceOrb({ phase, silent = false }: { phase: Phase; silent?: boolean }) {
   let inside = <MicOff size={32} />;
-  if (phase === 'listening') inside = <Mic size={36} />;
+  if (phase === 'listening') inside = silent ? <Keyboard size={34} /> : <Mic size={36} />;
   if (phase === 'speaking') {
     inside = (
       <span className="orb__bars">

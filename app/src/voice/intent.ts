@@ -32,6 +32,7 @@ function findMoney(text: string): Money {
   if (number?.[1]) money.amount = Number(number[1].replace(',', '.'));
   if (/£|\b(pounds?|quid|gbp)\b/.test(text)) money.currency = 'GBP';
   else if (/€|\b(euros?|eur)\b/.test(text)) money.currency = 'EUR';
+  else if (/\$|\b(dollars?|usd|bucks)\b/.test(text)) money.currency = 'USD';
   return money;
 }
 

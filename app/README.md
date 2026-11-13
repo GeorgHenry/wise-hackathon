@@ -19,20 +19,25 @@ Open http://localhost:5173. On a desktop the app sits in a phone frame with the
 demo controls beside it. On a phone the controls are behind the "Demo" button
 at the top.
 
-The app starts with the **scripted agent**: no microphone, no network. Tap a
-suggested phrase or type, and it answers, with the browser's own voice if the
-"speaks aloud" box is ticked.
-
-For the **live ElevenLabs agent**, also start the voice server and switch
-"Voice agent" to Live in the demo controls:
+Wise Voice is the **live ElevenLabs agent** whenever its server is running:
 
 ```bash
 cd voice-agent
 npm run server
 ```
 
-A live session uses ElevenLabs credits and the microphone for as long as the
-voice sheet is open. Close the sheet to end it.
+Open the voice sheet and talk. A live session uses the microphone and
+ElevenLabs credits for as long as the sheet is open, and the sheet opens by
+itself after every unlock. Close it to end the session.
+
+When the voice server is not running, the app falls back to a **silent
+scripted agent**: tap a suggested phrase or type, and it answers in text. You
+can choose it yourself under "Voice agent" in the demo controls, or by opening
+http://localhost:5173/?agent=scripted, which is what rehearsals and tests should
+use.
+
+The microphone needs a normal browser. The browser pane inside the Claude app
+blocks it.
 
 ## What to show
 
@@ -42,8 +47,12 @@ voice sheet is open. Close the sheet to end it.
    amounts are read out.
 4. "Send Oskar 30 pounds." It reads the details back and waits. Say or tap
    "Yes, send it", approve with Face ID, and watch the total balance drop.
-5. Switch Face ID to Fails and try again: nothing is sent.
-6. Press "Money arrives from Kadri": the agent says so and the balance rises.
+   Thirty pounds comes out of her pound balance with no fee; ask for 400 pounds
+   to hear a conversion from euros with its fee.
+5. "Transfer 20 dollars to Martin." Martin is a phone contact who uses Wise, not
+   a saved recipient. It says so, and that he has not been paid before.
+6. Switch Face ID to Fails and try again: nothing is sent.
+7. Press "Money arrives from Kadri": the agent says so and the balance rises.
 
 The mic button in the tab bar opens Wise Voice from any tab. "Reset the demo"
 puts the account back to the start.
