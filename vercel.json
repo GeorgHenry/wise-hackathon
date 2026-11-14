@@ -1,0 +1,21 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": null,
+  "installCommand": "npm ci --prefix voice-agent && npm install --prefix app --no-audit --no-fund",
+  "buildCommand": "npm run build --prefix app",
+  "outputDirectory": "app/dist",
+  "rewrites": [
+    { "source": "/voice-api/health", "destination": "/api/voice-health" },
+    { "source": "/voice-api/token", "destination": "/api/voice-token" }
+  ],
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        { "key": "x-content-type-options", "value": "nosniff" },
+        { "key": "referrer-policy", "value": "no-referrer" },
+        { "key": "permissions-policy", "value": "microphone=(self), camera=(), geolocation=()" }
+      ]
+    }
+  ]
+}

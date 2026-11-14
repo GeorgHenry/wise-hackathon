@@ -44,6 +44,7 @@ function liveStatus(health: LiveHealth | null): string {
   if (!health.reachable) return 'The voice server is not running. In voice-agent/, run: npm run server';
   if (!health.keySet) return 'The ElevenLabs key is not set yet.';
   if (!health.agentSet) return 'The ElevenLabs agent has not been created yet.';
+  if (!health.allowed) return 'Live voice needs the invite link. The scripted agent works without it.';
   return 'The live agent is ready. It uses the microphone and ElevenLabs credits while the voice sheet is open. Scripted is a silent stand-in: tap or type.';
 }
 
