@@ -253,7 +253,7 @@ test('confirm_transfer refuses until the latest answer after the readback is a y
   const ctx = setup();
   const before = await balance(ctx.bank);
   const { prepared } = await prepareTo(ctx);
-  assert.equal(prepared.readback, 'You are sending 50 pounds to Kadri. There is no fee. You pay 50 pounds in total. It should arrive today.');
+  assert.equal(prepared.readback, 'You are sending 50 pounds to Kadri. There is no fee. You pay 50 pounds in total.');
   const sameBreath = await ctx.tools.confirm_transfer({ transfer_id: prepared.transfer_id });
   assert.equal(sameBreath.error, 'needs_clear_yes', 'no answer yet');
   assert.match(sameBreath.say, /has not answered yet/);
@@ -448,7 +448,7 @@ test('"Transfer 20 dollars to Martin": a phone contact on Wise, read back, yes, 
   const prepared = await ctx.tools.prepare_transfer({ quote_id: quote.quote_id });
   assert.match(
     prepared.readback,
-    /^You are sending 20 dollars to Martin Saar's Wise account\. Martin Saar is in your phone contacts, and you haven't paid them before\. The fee is .+ You pay 18 euros and \d+ cents in total\. It should arrive in seconds\.$/,
+    /^You are sending 20 dollars to Martin Saar's Wise account\. You haven't paid them before\. The fee is .+ You pay 18 euros and \d+ cents in total\.$/,
   );
   // Prepared but not yet said: the agent is handed a short version to say first.
   const unread = await ctx.tools.confirm_transfer({ transfer_id: prepared.transfer_id });
@@ -572,7 +572,7 @@ test('Wisetag: found by its exact tag, spelled back with the owner, and paid onl
   const prepared = await ctx.tools.prepare_transfer({ quote_id: quote.quote_id });
   assert.equal(
     prepared.readback,
-    "You are sending 20 euros to John Jensen's Wise account, found by their Wisetag, and you haven't paid them before. There is no fee. You pay 20 euros in total. It should arrive in seconds.",
+    "You are sending 20 euros to John Jensen's Wise account. You haven't paid them before. There is no fee. You pay 20 euros in total.",
   );
   ctx.agent(`${prepared.readback} Shall I send it?`);
   ctx.say('Yeah, I got the gist. Send the money now.');
@@ -610,7 +610,7 @@ test("Pitch demo: Maria's mother is not saved, is found by her Wisetag, confirme
   const prepared = await ctx.tools.prepare_transfer({ quote_id: quote.quote_id });
   assert.equal(
     prepared.readback,
-    "You are sending 250 euros to Helen Brooks's Wise account, found by their Wisetag, and you haven't paid them before. There is no fee. You pay 250 euros in total. It should arrive in seconds.",
+    "You are sending 250 euros to Helen Brooks's Wise account. You haven't paid them before. There is no fee. You pay 250 euros in total.",
   );
   ctx.agent(`${prepared.readback} Shall I send it?`);
   ctx.say('Yes.');

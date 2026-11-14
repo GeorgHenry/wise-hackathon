@@ -768,17 +768,13 @@ export function createToolRuntime({
       const who = sameName.length > 1 && maskDetail(detail) ? `${d.recipient}, account ${maskDetail(detail)}` : d.recipient;
       const recipient = state.recipients.get(transfer.recipientId);
       const newPayee = (recipient?.source === 'contact' || recipient?.source === 'wisetag') && !recipient.paidBefore;
-      const notPaidYet = newPayee ? ", and you haven't paid them before" : '';
-      const toWhom =
-        recipient?.source === 'contact'
-          ? `${who}'s Wise account. ${d.recipient} is in your phone contacts${notPaidYet}`
-          : recipient?.source === 'wisetag'
-            ? `${who}'s Wise account, found by their Wisetag${notPaidYet}`
-            : who;
+      // Kept short: who, whether they are new, the fee and the total. Arrival is left out.
+      const toWhom = recipient?.source === 'contact' || recipient?.source === 'wisetag' ? `${who}'s Wise account` : who;
       const readback =
         `You are sending ${d.they_receive} to ${toWhom}. ` +
+        (newPayee ? "You haven't paid them before. " : '') +
         (d.fee === 'no fee' ? 'There is no fee. ' : `The fee is ${d.fee}. `) +
-        `You pay ${d.you_pay} in total. It should arrive ${d.arrives}.`;
+        `You pay ${d.you_pay} in total.`;
       // Said instead when the readback was cut off before the amounts: short enough to hear in one go.
       const short =
         `Just to be sure: ${d.they_receive} to ${who}` +
