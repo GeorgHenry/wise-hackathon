@@ -883,7 +883,9 @@ export function createToolRuntime({
           result = {
             ok: true,
             status: 'sent',
-            say: `Sent: ${d.they_receive} to ${d.recipient}. Tell the user it has gone. Do not ask them to approve anything now.`,
+            say:
+              `Sent: ${d.they_receive} to ${d.recipient}. Confirm it in your own warm, friendly voice, in one short sentence and without drama (for example "All done, ${d.they_receive} is sent to ${d.recipient}."). ` +
+              'Do not say when it will arrive, and do not ask them to approve anything now.',
           };
         } else {
           result = {
