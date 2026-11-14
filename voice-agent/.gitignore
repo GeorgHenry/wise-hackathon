@@ -1,4 +1,4 @@
 node_modules/
 web/vendor/
-.elevenlabs-state.json
+.elevenlabs-state*.json
 .live-check/

@@ -9,7 +9,8 @@ import { fileURLToPath } from 'node:url';
 export const AGENT_DIR = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 export const ROOT_DIR = resolve(AGENT_DIR, '..');
 export const ENV_FILE = process.env.VOICE_ENV_FILE ? resolve(process.env.VOICE_ENV_FILE) : resolve(ROOT_DIR, '.env.local');
-export const STATE_FILE = resolve(AGENT_DIR, '.elevenlabs-state.json');
+// One state file per ElevenLabs account: set VOICE_STATE_FILE when provisioning a second account.
+export const STATE_FILE = process.env.VOICE_STATE_FILE ? resolve(process.env.VOICE_STATE_FILE) : resolve(AGENT_DIR, '.elevenlabs-state.json');
 export const API_BASE = 'https://api.elevenlabs.io';
 
 const NAMES = ['ELEVENLABS_API_KEY', 'ELEVENLABS_AGENT_ID', 'ELEVENLABS_LLM', 'ELEVENLABS_VOICE_ID'];
